@@ -1,0 +1,34 @@
+BoySir Music Player End User License Agreement (EULA)
+
+Version: 1.0.0
+Effective Date: September 12, 2026
+Developer: Boy_Sir
+
+Important Notice: Please read this Agreement carefully before installing or using this software. By installing or using this software, you acknowledge that you have read, understood, and agreed to all terms of this Agreement. If you do not agree, please stop installing and using the software immediately.
+
+1. License Grant
+The Developer grants you a personal, non-exclusive, non-transferable license to install and use this software on your own devices for playing music files that you legally own.
+
+2. Restrictions
+You may not reverse engineer, decompile, crack, modify, or create derivative works of this software; remove or alter any copyright notices; use this software for any illegal purpose; or sell, rent, or distribute this software or its components separately.
+
+3. User Responsibility
+You are responsible for ensuring that the music files you play or import are legally obtained, and you bear full responsibility for any consequences arising from the use of illegal content. You are solely responsible for any consequences resulting from your violation of laws, regulations, or this Agreement.
+
+4. Intellectual Property
+All intellectual property rights in the software code, interface, icons, and related documentation belong to the Developer. Music files on your local device belong to you or their respective rights holders.
+
+5. Privacy Statement
+This software is a local music player and does not actively collect or upload your personal information. Playlists and settings are stored locally on your device by default. For more details, please refer to the Privacy Policy within the software.
+
+6. Disclaimer of Warranties
+This software is provided "as is." To the maximum extent permitted by applicable law, the Developer shall not be liable for any indirect, incidental, or punitive damages arising from the use or inability to use this software.
+
+7. Termination
+If you violate this Agreement, the license will terminate automatically. Upon termination, you must stop using the software and uninstall it.
+
+8. Updates to This Agreement
+The Developer may update this Agreement. Updated versions will be provided on the software release page or in the installation package. Continued use of the software constitutes acceptance of the new Agreement.
+
+9. Contact Information
+If you have any questions, please contact: 1879872864@qq.com
