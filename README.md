@@ -13,12 +13,6 @@ A local music player built with JavaFX and MaterialFX. It supports basic playbac
 - 🌐 Update checker (reads the latest version from your server)
 - 📦 Windows installer support (`.exe` / `.msi`) with bundled JRE
 
-## 🖼️ Screenshot
-
-> Placeholder. Add a screenshot of the main window.
-
-![Main Window](docs/screenshot.png)
-
 ## 🛠️ Tech Stack
 
 | Technology | Version |
