@@ -12,14 +12,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class AppState {
-    public double volume = .8, speed = 1.0, floatingSize = 28, translationSize = 16, floatingOpacity = 1;
+    public double volume = .8, speed = 1.0, floatingSize = 28, translationSize = 16, floatingOpacity = 1, lyricOffset = 0;
+    public int sleepTimerMinutes;
     public String floatingColor = "#FFFFFF", translationColor = "#EBEBEB", source = "网易云";
     public boolean showTranslation = true, floatingTop;
     public boolean floatingVisible;
     public boolean minimizeToTray = true;
+    public boolean autoStart;
+    public boolean keyboardShortcuts = true;
+    public String shortcutPlay = "SPACE", shortcutPrevious = "LEFT", shortcutNext = "RIGHT";
     public String theme = "跟随系统", backgroundPath = "";
     public final List<Song> favorites = new ArrayList<>();
     public final List<Song> queue = new ArrayList<>();
+    public final List<Song> history = new ArrayList<>();
+    public final List<Song> localSongs = new ArrayList<>();
 
     public static Path configDirectory() {
         return Path.of(System.getProperty("user.home"), ".boysir-music-player");
@@ -45,6 +51,8 @@ public final class AppState {
             state.floatingSize = number(json, "floatingSize", state.floatingSize);
             state.translationSize = number(json, "translationSize", state.translationSize);
             state.floatingOpacity = number(json, "floatingOpacity", state.floatingOpacity);
+            state.lyricOffset = number(json, "lyricOffset", state.lyricOffset);
+            state.sleepTimerMinutes = (int) number(json, "sleepTimerMinutes", state.sleepTimerMinutes);
             state.floatingColor = string(json, "floatingColor", state.floatingColor);
             state.translationColor = string(json, "translationColor", state.translationColor);
             state.source = string(json, "source", state.source);
@@ -52,14 +60,32 @@ public final class AppState {
             state.floatingTop = bool(json, "floatingTop", state.floatingTop);
             state.floatingVisible = bool(json, "floatingVisible", state.floatingVisible);
             state.minimizeToTray = bool(json, "minimizeToTray", state.minimizeToTray);
+            state.autoStart = bool(json, "autoStart", state.autoStart);
+            state.keyboardShortcuts = bool(json, "keyboardShortcuts", state.keyboardShortcuts);
+            state.shortcutPlay = string(json, "shortcutPlay", state.shortcutPlay);
+            state.shortcutPrevious = string(json, "shortcutPrevious", state.shortcutPrevious);
+            state.shortcutNext = string(json, "shortcutNext", state.shortcutNext);
             state.theme = string(json, "theme", state.theme);
             state.backgroundPath = string(json, "backgroundPath", state.backgroundPath);
             readSongs(json, "favorites", state.favorites);
             readSongs(json, "queue", state.queue);
+            readSongs(json, "history", state.history);
+            readSongs(json, "localSongs", state.localSongs);
+            state.localSongs.removeIf(s -> s.id() == null || !s.id().startsWith("local:") || !Files.isRegularFile(Path.of(s.id().substring(6))));
+            // Older builds stored percentage-like values for these controls.
+            // MFXSlider uses normalized values, so migrate those files once on load.
+            state.volume = normalized(state.volume, .8);
+            state.floatingOpacity = normalized(state.floatingOpacity, 1);
         } catch (Exception ignored) {
             // A malformed preference file should never prevent the player from starting.
         }
         return state;
+    }
+
+    private static double normalized(double value, double fallback) {
+        if (!Double.isFinite(value)) return fallback;
+        if (value > 1.0 && value <= 100.0) value /= 100.0;
+        return Math.max(0.0, Math.min(1.0, value));
     }
 
     public void save() {
@@ -78,6 +104,8 @@ public final class AppState {
                 "  \"floatingSize\": " + floatingSize + ",\n" +
                 "  \"translationSize\": " + translationSize + ",\n" +
                 "  \"floatingOpacity\": " + floatingOpacity + ",\n" +
+                "  \"lyricOffset\": " + lyricOffset + ",\n" +
+                "  \"sleepTimerMinutes\": " + sleepTimerMinutes + ",\n" +
                 "  \"floatingColor\": \"" + escape(floatingColor) + "\",\n" +
                 "  \"translationColor\": \"" + escape(translationColor) + "\",\n" +
                 "  \"source\": \"" + escape(source) + "\",\n" +
@@ -85,10 +113,17 @@ public final class AppState {
                 "  \"floatingTop\": " + floatingTop + ",\n" +
                 "  \"floatingVisible\": " + floatingVisible + ",\n" +
                 "  \"minimizeToTray\": " + minimizeToTray + ",\n" +
+                "  \"autoStart\": " + autoStart + ",\n" +
+                "  \"keyboardShortcuts\": " + keyboardShortcuts + ",\n" +
+                "  \"shortcutPlay\": \"" + escape(shortcutPlay) + "\",\n" +
+                "  \"shortcutPrevious\": \"" + escape(shortcutPrevious) + "\",\n" +
+                "  \"shortcutNext\": \"" + escape(shortcutNext) + "\",\n" +
                 "  \"theme\": \"" + escape(theme) + "\",\n" +
                 "  \"backgroundPath\": \"" + escape(backgroundPath) + "\",\n" +
                 "  \"favorites\": " + songsJson(favorites) + ",\n" +
-                "  \"queue\": " + songsJson(queue) + "\n" +
+                "  \"queue\": " + songsJson(queue) + ",\n" +
+                "  \"history\": " + songsJson(history) + ",\n" +
+                "  \"localSongs\": " + songsJson(localSongs) + "\n" +
                 "}\n";
     }
 
@@ -110,7 +145,12 @@ public final class AppState {
         if (keyAt < 0) return;
         int start = json.indexOf('[', keyAt);
         if (start < 0) return;
-        int end = key.equals("queue") ? json.lastIndexOf(']') : json.indexOf("],\n  \"", start + 1);
+        int depth = 0, end = -1;
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '[') depth++;
+            else if (c == ']' && --depth == 0) { end = i; break; }
+        }
         if (end < 0) return;
         String section = json.substring(start + 1, end);
         int cursor = 0;

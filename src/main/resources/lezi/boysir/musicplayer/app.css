@@ -15,6 +15,7 @@
 .dark-theme .lyric-active { -fx-text-fill: #d0bcff; }
 .dark-theme .slider .track { -fx-background-color: #514b58; }
 .dark-theme .slider .thumb { -fx-background-color: #cbb5ff; }
+.dark-theme .mfx-slider { -mfx-main-color: #cbb5ff; -mfx-main-color-hover: rgba(203,181,255,.16); -mfx-main-color-pressed: rgba(203,181,255,.28); }
 .dark-theme .mfx-toggle-button { -fx-text-fill: #d0bcff; }
 .dark-theme .mfx-toggle-button:selected { -fx-background-color: #4a3f5d; -fx-text-fill: #eaddff; }
 .custom-background .top-app-bar, .custom-background .navigation-rail, .custom-background .content-card, .custom-background .lyrics-card, .custom-background .player-bar { -fx-background-color: rgba(255,255,255,.76); -fx-border-color: rgba(255,255,255,.58); -fx-background-insets: 0; -fx-effect: dropshadow(gaussian, rgba(30,20,45,.18), 18, .18, 0, 4); }
@@ -38,7 +39,10 @@
 .search-box { -fx-min-width: 320px; -fx-pref-width: 390px; -fx-alignment: center-right; }
 .search-field { -fx-background-color: #f3edf7; -fx-background-radius: 24px; -fx-border-color: transparent; -fx-padding: 0 18px; -fx-alignment: center-left; -fx-font-size: 14px; -fx-pref-width: 320px; -fx-min-width: 220px; }
 .search-spinner { -fx-pref-width: 42px; -fx-pref-height: 42px; -fx-opacity: 0.96; }
-.update-progress { -fx-pref-width: 9999px; -fx-max-width: Infinity; -fx-pref-height: 3px; -fx-max-height: 3px; -fx-accent: #6750a4; -mfx-main: #6750a4; -mfx-secondary: #e8def8; }
+.update-progress { -fx-pref-width: 9999px; -fx-max-width: Infinity; -fx-pref-height: 4px; -fx-max-height: 4px; -fx-accent: #6750a4; -mfx-main: #6750a4; -mfx-secondary: #e8def8; }
+.update-progress .track { -fx-background-color: #e8def8; -fx-background-radius: 0; }
+.update-progress .bar { -fx-background-color: #6750a4; -fx-background-radius: 0; }
+.settings-switch-group { -fx-padding: 10px 0 0 0; -fx-border-color: #e8e0eb transparent transparent transparent; -fx-border-width: 1px 0 0 0; }
 .source-select { -fx-background-color: #f3edf7; -fx-background-radius: 14px; -fx-border-radius: 14px; -fx-pref-width: 104px; -fx-min-width: 104px; -fx-max-width: 104px; -fx-padding: 3px 6px; -fx-cursor: hand; } .source-select .text-field { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0 3px; -fx-alignment: center-left; -fx-cursor: hand; } .source-select .caret { -fx-background-color: #6750a4; -fx-shape: "M 0 0 L 10 0 L 5 6 Z"; -fx-min-width: 8px; -fx-pref-width: 8px; -fx-max-width: 8px; -fx-min-height: 5px; -fx-pref-height: 5px; -fx-max-height: 5px; } .source-select .caret .mfx-font-icon { visibility: hidden; }
 .icon-button, .transport { -fx-background-color: transparent; -fx-background-radius: 24px; -fx-border-radius: 24px; -fx-background-insets: 0; -fx-font-size: 21px; -fx-text-fill: #6750a4; -fx-alignment: center; -fx-padding: 0; }
 .transport { -fx-min-width: 44px; -fx-pref-width: 44px; -fx-max-width: 44px; -fx-min-height: 44px; -fx-pref-height: 44px; -fx-max-height: 44px; }
@@ -85,9 +89,80 @@
 .floating-lyric-pane { -fx-background-color: transparent; -fx-padding: 12px 18px; -fx-min-height: 112px; }
 .floating-lyric { -fx-text-fill: white; -fx-font-size: 28px; -fx-font-weight: 800; -fx-alignment: center; -fx-text-alignment: center; -fx-effect: dropshadow(gaussian, rgba(0,0,0,.80), 5, .65, 0, 2); }
 .floating-translation { -fx-text-fill: rgba(255,255,255,.88); -fx-font-size: 16px; -fx-alignment: center; -fx-text-alignment: center; -fx-effect: dropshadow(gaussian, rgba(0,0,0,.80), 4, .65, 0, 1); }
-.settings-grid { -fx-padding: 12px 0; } .settings-grid .slider { -fx-pref-width: 300px; } .clear-playlist { -fx-cursor: hand; }
+.settings-grid { -fx-padding: 12px 0; }
+.settings-grid .mfx-slider, .settings-column .mfx-slider {
+    -fx-pref-width: 300px;
+    -fx-min-width: 220px;
+    -fx-min-height: 6px;
+    -fx-pref-height: 6px;
+    -fx-max-height: 6px;
+}
+
+/* MaterialFX MFXSlider skin: track/bar are rectangles bound to the control
+   height, so keep the control at the library's native 6px height. */
+.mfx-slider {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+    -mfx-main-color: #6750a4;
+    -mfx-main-color-hover: rgba(103,80,164,.14);
+    -mfx-main-color-pressed: rgba(103,80,164,.28);
+}
+.mfx-slider .track, .mfx-slider .bar { -fx-arc-height: 6; -fx-arc-width: 6; }
+.mfx-slider .track { -fx-fill: #ddd2ef; }
+.mfx-slider .bar { -fx-fill: #6750a4; }
+.mfx-slider:focused, .mfx-slider:pressed {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+}
+.mfx-slider .clean-slider-thumb {
+    -fx-fill: -mfx-main-color;
+    -fx-stroke: transparent;
+    -fx-stroke-width: 0;
+}
+.mfx-slider .clean-slider-thumb:hover { -fx-fill: derive(-mfx-main-color, 12%); }
+.mfx-slider .clean-slider-thumb:pressed { -fx-fill: derive(-mfx-main-color, -8%); }
+.mfx-slider .clean-slider-thumb-radius {
+    -fx-fill: transparent;
+    -fx-stroke: transparent;
+    -fx-stroke-width: 0;
+}
+.mfx-slider .thumb-container:hover .clean-slider-thumb-radius {
+    -fx-fill: -mfx-main-color-hover;
+}
+.mfx-slider .thumb-container:pressed .clean-slider-thumb-radius {
+    -fx-fill: -mfx-main-color-pressed;
+}
+.mfx-slider #popupContent {
+    -fx-background-color: #6e6e6e;
+    -fx-background-radius: 7px;
+    -fx-border-color: transparent;
+    -fx-padding: 4px 7px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,.18), 5, .2, 0, 2);
+}
+.mfx-slider #popupText {
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.mfx-slider #popupCaret {
+    /* MaterialFX uses a font icon for this caret. On systems where that
+       glyph is unavailable it becomes a grey tofu square, so hide only the
+       broken caret while retaining the native popup and its animation. */
+    visibility: hidden;
+    -fx-opacity: 0;
+}
+.mfx-slider .tick-even, .mfx-slider .tick-odd { visibility: hidden; }
+.mfx-slider .axis-minor-tick-mark { visibility: hidden; }
+.clear-playlist { -fx-cursor: hand; }
+.settings-scroll { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; }
+.settings-scroll > .viewport { -fx-background-color: transparent; }
+.settings-scroll > .corner { -fx-background-color: transparent; }
 .speed-select .list-view { -fx-background-color: #fffaff; -fx-background-radius: 14px; -fx-border-color: #e8def8; -fx-border-radius: 14px; }
-.volume-slider { -fx-pref-width: 110px; }
+.volume-slider { -fx-pref-width: 110px; -fx-min-height: 18px; -fx-pref-height: 18px; -fx-max-height: 18px; }
 .scroll-bar:vertical { -fx-background-color: transparent; -fx-padding: 2px; -fx-pref-width: 10px; }
 .scroll-bar:vertical .track { -fx-background-color: transparent; }
 .scroll-bar:vertical .thumb { -fx-background-color: #c8b8d8; -fx-background-radius: 8px; }
@@ -96,8 +171,16 @@
 .play-button { -fx-background-color: #6750a4; -fx-text-fill: white; -fx-font-size: 22px; -fx-background-radius: 24px; -fx-min-width: 56px; -fx-pref-width: 56px; -fx-max-width: 56px; -fx-min-height: 56px; -fx-pref-height: 56px; -fx-max-height: 56px; -fx-alignment: center; -fx-content-display: center; -fx-padding: 0; -fx-text-overrun: clip; }
 .play-button:pressed, .play-button:focused { -fx-background-color: #4f378b; -fx-background-radius: 24px; -fx-border-radius: 24px; -fx-background-insets: 0; }
 .mfx-button.play-button, .mfx-button.play-button:armed, .mfx-button.play-button:hover, .mfx-button.play-button:focused { -fx-background-color: #6750a4; -fx-background-radius: 24px; -fx-border-radius: 24px; -fx-background-insets: 0; }
-.timeline { -fx-padding: 0 34px; } .timeline .slider .track { -fx-pref-height: 5px; }
+.timeline { -fx-padding: 0 34px; }
+.timeline .slider { -fx-min-height: 18px; -fx-pref-height: 18px; -fx-max-height: 18px; }
+.timeline .slider .track { -fx-pref-height: 5px; }
 .slider .track { -fx-background-color: #d0c4d8; -fx-pref-height: 4px; } .slider .thumb { -fx-background-color: #6750a4; }
 .danger-button { -fx-background-color: #f9dadd; -fx-background-radius: 14px; -fx-text-fill: #8c1d18; -fx-cursor: hand; } .document-text { -fx-background-color: #fffbfe; -fx-text-fill: #1d1b20; -fx-font-size: 14px; }
 .config-button { -fx-background-color: #e8def8; -fx-background-radius: 14px; -fx-text-fill: #6750a4; -fx-font-size: 12px; -fx-cursor: hand; } .danger-button, .config-button { -fx-font-size: 12px; }
 .policy-button { -fx-font-size: 11px; -fx-background-radius: 14px; -fx-padding: 5px 10px; -fx-cursor: hand; }
+.shortcut-field { -fx-background-color: #f3edf7; -fx-background-radius: 10px; -fx-border-color: transparent; -fx-padding: 5px 9px; -fx-font-size: 12px; -fx-alignment: center; -fx-cursor: hand; }
+.shortcut-field .text-field { -fx-alignment: center; -fx-padding: 0; }
+.shortcut-field { -fx-pref-height: 32px; -fx-min-height: 32px; -fx-max-height: 32px; -fx-line-height: 32px; }
+.settings-column { -fx-padding: 0 0 12px 0; }
+.shortcut-field:focused { -fx-border-color: #6750a4; -fx-border-width: 1px; -fx-border-radius: 10px; }
+.dark-theme .shortcut-field { -fx-background-color: #302d36; -fx-text-fill: #eee8f0; }

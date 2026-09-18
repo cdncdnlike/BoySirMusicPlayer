@@ -72,6 +72,12 @@ jlink {
             "--vendor", "Boy_Sir",
             "--description", "BoySir Music Player",
             "--copyright", "Copyright © 2026 BoySir Network",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-mp3.properties",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-m4a.properties",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-aac.properties",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-wav.properties",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-aiff.properties",
+            "--file-associations", "src/main/resources/lezi/boysir/musicplayer/file-association-flac.properties",
         )
     }
 }

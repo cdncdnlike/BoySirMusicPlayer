@@ -10,15 +10,16 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.regex.*;
 
 public class MusicApi {
-    private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).followRedirects(HttpClient.Redirect.NORMAL).build();
     private final Map<String,String> qqLyrics = new HashMap<>(), qqUrls = new HashMap<>();
     public record UpdateInfo(String version, String downloadUrl, String releaseNotes, boolean forceUpdate) { }
     public CompletableFuture<UpdateInfo> checkUpdate() {
         return get("https://www.alicemana.cn/checkupdate/version.json").thenApply(j -> new UpdateInfo(
-                find(j, "version"), find(j, "downloadUrl"), find(j, "releaseNotes"), Pattern.compile("\\\"forceUpdate\\\"\\s*:\\s*true", Pattern.CASE_INSENSITIVE).matcher(j).find()));
+                find(j, "version"), find(j, "downloadUrl"), find(j, "releaseNotes"), Pattern.compile("\\\"forceUpdate\\\"\\s*:\\s*true", Pattern.CASE_INSENSITIVE).matcher(j).find())).orTimeout(8, java.util.concurrent.TimeUnit.SECONDS);
     }
     public CompletableFuture<List<Song>> search(String key, String source) { return "腾讯云".equals(source) ? get("https://cyapi.top/API/qq_music.php?apikey=62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4&msg=" + enc(key) + "&num=30&type=json").thenApply(this::qqSongs) : get("https://msapi.awup.cn/search?keywords=" + enc(key)).thenApply(this::songs); }
     public CompletableFuture<List<Song>> search(String key) { return search(key, "网易云"); }
@@ -49,7 +50,7 @@ public class MusicApi {
     public CompletableFuture<Song> qqDetails(Song song) { String[] p=song.id().split(":",3); String n=p.length>1?p[1]:"1"; return get("https://cyapi.top/API/qq_music.php?apikey=62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4&msg="+enc(song.name())+"&num=30&n="+n+"&type=json").thenApply(j -> { String lyric=findNested(j,"lyric","text"), audio=find(j,"url"); qqLyrics.put(song.id(),lyric); qqUrls.put(song.id(),audio); return song.withDetails(findNested(j,"cover","large"), lyric); }); }
     public CompletableFuture<String> qqAudio(Song song) { String[] p=song.id().split(":",3); String n=p.length>1?p[1]:"1"; return get("https://cyapi.top/API/qq_music.php?apikey=62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4&msg="+enc(song.name())+"&num=30&n="+n+"&type=json").thenApply(j -> find(j,"url")); }
     private String enc(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
-    private CompletableFuture<String> get(String url) { return client.sendAsync(HttpRequest.newBuilder(URI.create(url)).header("Accept", "application/json").GET().build(), HttpResponse.BodyHandlers.ofString()).thenApply(HttpResponse::body); }
+    private CompletableFuture<String> get(String url) { return client.sendAsync(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).header("Accept", "application/json").GET().build(), HttpResponse.BodyHandlers.ofString()).thenApply(HttpResponse::body); }
     private List<Song> songs(String json) {
         List<Song> result = new ArrayList<>();
         Matcher item = Pattern.compile("\\\"fee\\\"\\s*:[\\s\\S]*?(?=\\\"fee\\\"\\s*:|\\\"hasMore\\\")").matcher(json);

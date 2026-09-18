@@ -4,6 +4,8 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import java.io.File;
+import java.util.Arrays;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
@@ -37,15 +39,22 @@ public class HelloApplication extends Application {
             System.exit(0);
         };
         WindowsNotifier.installAppTray(stage, exitApplication, controller::restoreFloatingLyrics);
+        stage.iconifiedProperty().addListener((observable, wasIconified, iconified) -> {
+            if (iconified) controller.keepFloatingLyricsVisible();
+        });
         stage.setOnCloseRequest(event -> {
             if (controller.shouldMinimizeToTray()) {
                 event.consume();
                 stage.hide();
+                controller.keepFloatingLyricsVisible();
             } else {
                 exitApplication.run();
             }
         });
         stage.show();
+        if (getParameters() != null && getParameters().getRaw() != null && !getParameters().getRaw().isEmpty()) {
+            controller.openFiles(getParameters().getRaw().stream().map(String::trim).filter(s -> !s.isBlank()).toList());
+        }
     }
     public static void main(String[] args) { launch(args); }
 }
