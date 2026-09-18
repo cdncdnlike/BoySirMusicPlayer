@@ -1,6 +1,6 @@
 BoySir Music Player End User License Agreement (EULA)
 
-Version: 1.0.0
+Version: 1.0.3
 Effective Date: September 12, 2026
 Developer: Boy_Sir
 
