@@ -15,24 +15,40 @@ import javafx.stage.Stage;
 /** Uses the Windows shell notification balloon through the desktop tray API. */
 public final class WindowsNotifier {
     private static TrayIcon appTrayIcon;
+    private static MenuItem playPauseItem;
 
     private WindowsNotifier() {}
 
     /** Installs the app's persistent Windows notification-area icon and menu. */
-    public static void installAppTray(Stage stage, Runnable exitAction, Runnable restoreAction) {
+    public static void installAppTray(Stage stage, Runnable exitAction, Runnable restoreAction,
+                                      Runnable playPauseAction, Runnable previousAction, Runnable nextAction) {
         if (!SystemTray.isSupported() || appTrayIcon != null) return;
         try {
             Image image = ImageIO.read(WindowsNotifier.class.getResourceAsStream("app-logo.png"));
             PopupMenu menu = new PopupMenu();
             MenuItem showMain = new MenuItem("Show Main Window");
+            MenuItem previous = new MenuItem("Previous");
+            MenuItem playPause = new MenuItem("Play");
+            MenuItem next = new MenuItem("Next");
+            playPauseItem = playPause;
             MenuItem exit = new MenuItem("Exit");
             Font menuFont = new Font("Microsoft YaHei UI", Font.PLAIN, 12);
             menu.setFont(menuFont);
             showMain.setFont(menuFont);
+            previous.setFont(menuFont);
+            playPause.setFont(menuFont);
+            next.setFont(menuFont);
             exit.setFont(menuFont);
             showMain.addActionListener(event -> Platform.runLater(() -> { showMainWindow(stage); restoreAction.run(); }));
+            previous.addActionListener(event -> Platform.runLater(previousAction));
+            playPause.addActionListener(event -> Platform.runLater(playPauseAction));
+            next.addActionListener(event -> Platform.runLater(nextAction));
             exit.addActionListener(event -> Platform.runLater(exitAction));
             menu.add(showMain);
+            menu.addSeparator();
+            menu.add(previous);
+            menu.add(playPause);
+            menu.add(next);
             menu.addSeparator();
             menu.add(exit);
 
@@ -50,6 +66,13 @@ public final class WindowsNotifier {
             SystemTray.getSystemTray().remove(appTrayIcon);
             appTrayIcon = null;
         }
+        playPauseItem = null;
+    }
+
+    /** Updates the tray play/pause label to reflect the current playback state. */
+    public static void setPlaybackPlaying(boolean playing) {
+        MenuItem item = playPauseItem;
+        if (item != null) java.awt.EventQueue.invokeLater(() -> item.setLabel(playing ? "Pause" : "Play"));
     }
 
     private static void showMainWindow(Stage stage) {

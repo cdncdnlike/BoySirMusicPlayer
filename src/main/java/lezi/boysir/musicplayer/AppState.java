@@ -13,10 +13,13 @@ import java.util.regex.Pattern;
 
 public final class AppState {
     public double volume = .8, speed = 1.0, floatingSize = 28, translationSize = 16, floatingOpacity = 1, lyricOffset = 0;
+    /** Width of the floating lyric window in pixels; wider means long lyrics show without being truncated to "...". */
+    public double floatingWidth = 600;
     public int sleepTimerMinutes;
     public String floatingColor = "#FFFFFF", translationColor = "#EBEBEB", source = "网易云";
     public boolean showTranslation = true, floatingTop;
     public boolean floatingVisible;
+    public boolean showSpectrum = true;
     public boolean minimizeToTray = true;
     public boolean autoStart;
     public boolean keyboardShortcuts = true;
@@ -49,6 +52,7 @@ public final class AppState {
             state.volume = number(json, "volume", state.volume);
             state.speed = number(json, "speed", state.speed);
             state.floatingSize = number(json, "floatingSize", state.floatingSize);
+            state.floatingWidth = number(json, "floatingWidth", state.floatingWidth);
             state.translationSize = number(json, "translationSize", state.translationSize);
             state.floatingOpacity = number(json, "floatingOpacity", state.floatingOpacity);
             state.lyricOffset = number(json, "lyricOffset", state.lyricOffset);
@@ -59,6 +63,7 @@ public final class AppState {
             state.showTranslation = bool(json, "showTranslation", state.showTranslation);
             state.floatingTop = bool(json, "floatingTop", state.floatingTop);
             state.floatingVisible = bool(json, "floatingVisible", state.floatingVisible);
+            state.showSpectrum = bool(json, "showSpectrum", state.showSpectrum);
             state.minimizeToTray = bool(json, "minimizeToTray", state.minimizeToTray);
             state.autoStart = bool(json, "autoStart", state.autoStart);
             state.keyboardShortcuts = bool(json, "keyboardShortcuts", state.keyboardShortcuts);
@@ -102,6 +107,7 @@ public final class AppState {
                 "  \"volume\": " + volume + ",\n" +
                 "  \"speed\": " + speed + ",\n" +
                 "  \"floatingSize\": " + floatingSize + ",\n" +
+                "  \"floatingWidth\": " + floatingWidth + ",\n" +
                 "  \"translationSize\": " + translationSize + ",\n" +
                 "  \"floatingOpacity\": " + floatingOpacity + ",\n" +
                 "  \"lyricOffset\": " + lyricOffset + ",\n" +
@@ -112,6 +118,7 @@ public final class AppState {
                 "  \"showTranslation\": " + showTranslation + ",\n" +
                 "  \"floatingTop\": " + floatingTop + ",\n" +
                 "  \"floatingVisible\": " + floatingVisible + ",\n" +
+                "  \"showSpectrum\": " + showSpectrum + ",\n" +
                 "  \"minimizeToTray\": " + minimizeToTray + ",\n" +
                 "  \"autoStart\": " + autoStart + ",\n" +
                 "  \"keyboardShortcuts\": " + keyboardShortcuts + ",\n" +
