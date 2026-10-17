@@ -127,6 +127,7 @@ public class HelloController {
     private final javafx.scene.layout.Pane spectrumHost = new javafx.scene.layout.Pane(spectrumCanvas);
     private final double[] spectrumLevels = new double[SPECTRUM_BANDS];
     private final MFXToggleButton showSpectrum = new MFXToggleButton("频谱可视化");
+    private final MFXToggleButton recordHistory = new MFXToggleButton("记录播放历史");
     private float[] spectrumMagnitudes;
     private AnimationTimer spectrumTimer;
     // Full-screen "now playing" detail page: large cover on the left, live lyrics on the right.
@@ -176,6 +177,11 @@ public class HelloController {
             spectrumHost.setManaged(b);
             if (!b) clearSpectrum();
         });
+        recordHistory.setSelected(savedState.recordHistory);
+        recordHistory.selectedProperty().addListener((o, a, b) -> {
+            savedState.recordHistory = b;
+            savedState.save();
+        });
     }
 
     private void configureSliders() {
@@ -186,8 +192,7 @@ public class HelloController {
         configureSlider(floatingWidth, 300, 1200, savedState.floatingWidth, SliderMode.SNAP_TO_TICKS, false, 10);
     }
 
-    private void configureSlider(MFXSlider slider, double min, double max, double value, SliderMode mode, boolean bidirectional, double tickUnit) {
-        // Set max before min: MFXSlider rejects a min greater than the current max,
+    private void configureSlider(MFXSlider slider, double min, double max, double value, SliderMode mode, boolean bidirectional, double tickUnit) {        // Set max before min: MFXSlider rejects a min greater than the current max,
         // so widening the range upward (e.g. 0-100 -> 300-1200) must raise max first.
         slider.setMax(max);
         slider.setMin(min);
@@ -230,6 +235,22 @@ public class HelloController {
         slider.setPrefHeight(6);
         slider.setMaxHeight(6);
         slider.getStyleClass().add("player-slider");
+    }
+
+    // A JavaFX Slider has no separate "played" bar node like MFXSlider's .bar, so the
+    // played portion is painted onto the track background as a hard-stop gradient that
+    // ends exactly at the thumb. Inline style only overrides the color, so the height
+    // and radius coming from the stylesheet are preserved.
+    private void applySliderFill(Slider slider) {
+        Node track = slider.lookup(".track");
+        if (track == null) return;
+        double span = slider.getMax() - slider.getMin();
+        double fraction = span <= 0 ? 0 : (slider.getValue() - slider.getMin()) / span;
+        String percent = String.format(java.util.Locale.ROOT, "%.2f", Math.max(0, Math.min(100, fraction * 100)));
+        boolean dark = rootPane != null && rootPane.getStyleClass().contains("dark-theme");
+        String filled = dark ? "#cbb5ff" : "#6750a4";
+        String empty = dark ? "#514b58" : "#d0c4d8";
+        track.setStyle("-fx-background-color: linear-gradient(to right, " + filled + " 0%, " + filled + " " + percent + "%, " + empty + " " + percent + "%, " + empty + " 100%);");
     }
 
     private void loadSavedFloatingSettings() {
@@ -403,7 +424,8 @@ public class HelloController {
         Label h=new Label("歌单");h.getStyleClass().add("page-title");
         Label sub=new Label("本地歌单 · 最近播放与收藏");sub.getStyleClass().add("muted");
         MFXButton clear=new MFXButton("清空歌单"); clear.getStyleClass().add("clear-playlist"); configureRipple(clear, 18); addPressAnimation(clear); clear.setOnAction(e -> { recentSongs.clear(); savedState.queue.clear(); savedState.save(); });
-        HBox heading=new HBox(new VBox(2,h,sub), new Region(), clear); HBox.setHgrow(heading.getChildren().get(1), Priority.ALWAYS); heading.setAlignment(Pos.CENTER_LEFT);
+        MFXButton clearHistory=new MFXButton("清除历史"); clearHistory.getStyleClass().add("clear-playlist"); configureRipple(clearHistory, 18); addPressAnimation(clearHistory); clearHistory.setOnAction(e -> { historySongs.clear(); savedState.history.clear(); savedState.save(); status.setText("播放历史已清除"); });
+        HBox heading=new HBox(8, new VBox(2,h,sub), new Region(), clearHistory, clear); HBox.setHgrow(heading.getChildren().get(1), Priority.ALWAYS); heading.setAlignment(Pos.CENTER_LEFT);
         ListView<Song> copy=new ListView<>(recentSongs); copy.setPlaceholder(new Label("播放歌曲后会出现在这里"));
         copy.setCellFactory(v->new ListCell<>(){
             private double dragY;
@@ -423,7 +445,7 @@ public class HelloController {
         lyricOffsetSlider.setSliderMode(SliderMode.SNAP_TO_TICKS); lyricOffsetSlider.setTickUnit(1); lyricOffsetSlider.setShowMajorTicks(false); lyricOffsetSlider.setShowMinorTicks(false); lyricOffsetSlider.setPrefWidth(300); lyricOffsetSlider.setValue(savedState.lyricOffset); sleepTimerSelect.setValue(sleepTimerLabel(savedState.sleepTimerMinutes)); sleepTimerSelect.setText(sleepTimerSelect.getValue()); sleepTimerSelect.setFloatMode(FloatMode.DISABLED); sleepTimerSelect.getStyleClass().add("source-select"); sleepTimerSelect.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!sleepTimerSelect.isShowing()) sleepTimerSelect.show(); }));
         GridPane grid = new GridPane(); grid.setHgap(18); grid.setVgap(16); grid.addRow(0,new Label("原文大小"),floatingSize); grid.addRow(1,new Label("翻译大小"),translationSize); grid.addRow(2,new Label("原文颜色"),floatingColor); grid.addRow(3,new Label("翻译颜色"),translationColor); grid.addRow(4,new Label("文字透明度"),floatingOpacity); grid.addRow(5,new Label("显示宽度"),floatingWidth); grid.addRow(6,floatingTop); ColumnConstraints cc=new ColumnConstraints();cc.setMinWidth(130);grid.getColumnConstraints().add(cc); grid.getStyleClass().add("settings-grid");
         showSpectrum.setSelected(savedState.showSpectrum);
-        GridPane playbackSettings = new GridPane(); playbackSettings.setHgap(18); playbackSettings.setVgap(16); playbackSettings.addRow(0, new Label("歌词偏移（秒）"), lyricOffsetSlider); playbackSettings.addRow(1, new Label("睡眠定时器"), sleepTimerSelect); playbackSettings.addRow(2, new Label("频谱可视化"), showSpectrum); playbackSettings.getStyleClass().add("settings-grid");
+        GridPane playbackSettings = new GridPane(); playbackSettings.setHgap(18); playbackSettings.setVgap(16); playbackSettings.addRow(0, new Label("歌词偏移（秒）"), lyricOffsetSlider); playbackSettings.addRow(1, new Label("睡眠定时器"), sleepTimerSelect); playbackSettings.addRow(2, new Label("频谱可视化"), showSpectrum); playbackSettings.addRow(3, new Label("播放历史"), recordHistory); playbackSettings.getStyleClass().add("settings-grid");
         MFXButton openConfig = new MFXButton("打开配置文件夹"); openConfig.setPrefHeight(34); openConfig.setPrefWidth(132); openConfig.getStyleClass().add("config-button"); configureRipple(openConfig, 16); addPressAnimation(openConfig); openConfig.setOnAction(e -> openConfigFolder());
         MFXButton clearConfig = new MFXButton("清空配置文件"); clearConfig.setPrefHeight(34); clearConfig.setPrefWidth(116); clearConfig.getStyleClass().add("danger-button"); configureRipple(clearConfig, 16); addPressAnimation(clearConfig); clearConfig.setOnAction(e -> clearConfig());
         MFXButton clearBackground = new MFXButton("清除背景"); clearBackground.setPrefHeight(34); clearBackground.setPrefWidth(116); clearBackground.getStyleClass().add("config-button"); configureRipple(clearBackground, 16); addPressAnimation(clearBackground); clearBackground.setOnAction(e -> { savedState.backgroundPath = ""; savedState.save(); applyTheme(); });
@@ -562,6 +584,7 @@ public class HelloController {
             rootPane.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, new BackgroundSize(100, 100, true, true, false, true))));
             rootPane.setStyle("-fx-background-color: transparent; -fx-background-image: url('" + Path.of(savedState.backgroundPath).toUri() + "'); -fx-background-repeat: no-repeat; -fx-background-position: center center; -fx-background-size: cover;");
         } else if (savedState.backgroundPath.isBlank()) { rootPane.setBackground(null); rootPane.setStyle(""); }
+        Platform.runLater(() -> { applySliderFill(progress); applySliderFill(volume); });
     }
 
     private HBox header() {
@@ -593,15 +616,15 @@ public class HelloController {
         title.getStyleClass().add("playing-name"); artist.getStyleClass().add("playing-artist"); HBox now = new HBox(14, art, new VBox(3, title, artist)); now.setAlignment(Pos.CENTER_LEFT); HBox.setHgrow(now, Priority.ALWAYS);
         MFXButton prev = new MFXButton("\uE100"), next = new MFXButton("\uE101"); prev.setAccessibleText("上一首 \uE100"); next.setAccessibleText("下一首 \uE101"); prev.setUserData("\uE100"); next.setUserData("\uE101"); prev.getStyleClass().add("transport"); next.getStyleClass().add("transport"); toggle.getStyleClass().add("play-button"); repeat.getStyleClass().addAll("transport", "fa-solid"); for (Button b : new Button[]{prev, next, toggle, repeat}) { if (b instanceof MFXButton m) configureRipple(m, b == toggle ? 24 : 22); addPressAnimation(b); if (b == toggle) b.setPrefSize(56, 56); else b.setPrefSize(44, 44); b.setMinSize(b.getPrefWidth(), b.getPrefHeight()); } toggle.setOnAction(e -> toggle()); prev.setOnAction(e -> previous()); next.setOnAction(e -> next()); repeat.setOnAction(e -> { repeatMode = (repeatMode + 1) % 4; shuffleEnabled = repeatMode == 3; applyRepeatIcon(repeat, repeatMode); setActive(repeat, repeatMode != 0); });
         speed.getItems().setAll(.75, 1.0, 1.25, 1.5, 2.0); speed.setValue(savedState.speed); speed.selectItem(savedState.speed); speed.setText(savedState.speed + "x"); speed.setFloatMode(FloatMode.DISABLED); speed.setConverter(new javafx.util.StringConverter<>() { public String toString(Double v){return v==null?"1.0x":v+"x";} public Double fromString(String s){return Double.valueOf(s.replace("x", ""));} }); speed.getStyleClass().add("speed-select"); speed.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!speed.isShowing()) speed.show(); })); speed.setOnAction(e -> { if (speed.getValue()!=null) speed.setText(speed.getConverter().toString(speed.getValue())); savedState.speed = speed.getValue(); savedState.save(); if (player != null) player.setRate(speed.getValue()); });
-        volume.setValue(savedState.volume); volumePercent.setText(String.format("%d%%", Math.round(savedState.volume * 100))); volume.setPrefWidth(110); volume.getStyleClass().add("volume-slider"); volume.valueProperty().addListener((o,a,b) -> { volumePercent.setText(String.format("%d%%", Math.round(b.doubleValue()*100))); savedState.volume = b.doubleValue(); savedState.save(); if (player != null) player.setVolume(b.doubleValue()); });
-        progress.setMaxWidth(Double.MAX_VALUE); progress.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_DRAGGED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> e.consume()); HBox timeline=new HBox(8,elapsed,progress,duration); timeline.getStyleClass().add("timeline"); timeline.setAlignment(Pos.CENTER); HBox.setHgrow(progress,Priority.ALWAYS); VBox state = new VBox(4, status); state.setAlignment(Pos.CENTER_RIGHT);
+        volume.setValue(savedState.volume); volumePercent.setText(String.format("%d%%", Math.round(savedState.volume * 100))); volume.setPrefWidth(110); volume.getStyleClass().add("volume-slider"); volume.valueProperty().addListener((o,a,b) -> { volumePercent.setText(String.format("%d%%", Math.round(b.doubleValue()*100))); savedState.volume = b.doubleValue(); savedState.save(); if (player != null) player.setVolume(b.doubleValue()); applySliderFill(volume); });
+        progress.setMaxWidth(Double.MAX_VALUE); progress.valueProperty().addListener((o, a, b) -> applySliderFill(progress)); progress.skinProperty().addListener((o, a, b) -> Platform.runLater(() -> applySliderFill(progress))); volume.skinProperty().addListener((o, a, b) -> Platform.runLater(() -> applySliderFill(volume))); progress.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_DRAGGED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> e.consume()); HBox timeline=new HBox(8,elapsed,progress,duration); timeline.getStyleClass().add("timeline"); timeline.setAlignment(Pos.CENTER); HBox.setHgrow(progress,Priority.ALWAYS); VBox state = new VBox(4, status); state.setAlignment(Pos.CENTER_RIGHT);
         favorite.getStyleClass().addAll("favorite-button", "fa-regular"); favorite.setMinSize(38,38); favorite.setPrefSize(38,38); favorite.setMaxSize(38,38); favorite.setAlignment(Pos.CENTER); favorite.setPadding(Insets.EMPTY); configureRipple(favorite, 18); favorite.setOnAction(e -> toggleFavorite()); setFavoriteIcon(currentSong != null && hasFavorite(currentSong.id())); MFXButton downloadButton = new MFXButton("\uE118"); downloadButton.getStyleClass().add("transport"); configureRipple(downloadButton, 18); downloadButton.setOnAction(e -> downloadCurrent()); MFXButton floatButton = new MFXButton("词"); floatingToggleButton = floatButton; floatButton.getStyleClass().add("transport"); configureRipple(floatButton, 18); floatButton.setOnAction(e -> toggleFloatingLyrics()); HBox controls = new HBox(10, prev, toggle, next, repeat); controls.setAlignment(Pos.CENTER); HBox options = new HBox(10, favorite, downloadButton, floatButton, new Label("速度"), speed, new Label("音量"), volume, volumePercent); options.setAlignment(Pos.CENTER_RIGHT); VBox right = new VBox(5, state, options); right.setAlignment(Pos.CENTER_RIGHT);
         saying.getStyleClass().add("saying"); api.randomSaying().thenAccept(text -> Platform.runLater(() -> saying.setText(text))).exceptionally(e -> null);
         BorderPane bar = new BorderPane(); bar.getStyleClass().add("player-controls"); bar.setLeft(now); bar.setCenter(controls); bar.setRight(right); BorderPane.setAlignment(now, Pos.CENTER_LEFT); BorderPane.setAlignment(controls, Pos.CENTER); BorderPane.setAlignment(right, Pos.CENTER_RIGHT); bar.setPadding(new Insets(10, 34, 14, 34));
         spectrumCanvas.getStyleClass().add("spectrum-canvas"); spectrumCanvas.setManaged(false); spectrumCanvas.setMouseTransparent(true);
         spectrumHost.getStyleClass().add("spectrum-host"); spectrumHost.setMouseTransparent(true); spectrumHost.setMinWidth(0); spectrumHost.setPrefWidth(0); spectrumHost.setMaxWidth(Double.MAX_VALUE); spectrumHost.setMinHeight(40); spectrumHost.setPrefHeight(40); spectrumHost.setMaxHeight(40); spectrumHost.setVisible(savedState.showSpectrum); spectrumHost.setManaged(savedState.showSpectrum);
         spectrumCanvas.widthProperty().bind(spectrumHost.widthProperty()); spectrumCanvas.heightProperty().bind(spectrumHost.heightProperty());
-        VBox shell=new VBox(spectrumHost,timeline,bar,saying); shell.getStyleClass().add("player-bar"); shell.setPadding(new Insets(6,0,0,0)); HBox.setHgrow(progress,Priority.ALWAYS); timeline.setPadding(new Insets(0,34,0,34)); return shell;
+        VBox shell=new VBox(spectrumHost,timeline,bar,saying); shell.getStyleClass().add("player-bar"); shell.setPadding(new Insets(6,0,0,0)); HBox.setHgrow(progress,Priority.ALWAYS); timeline.setPadding(new Insets(0,34,0,34)); Platform.runLater(() -> { applySliderFill(progress); applySliderFill(volume); }); return shell;
     }
 
     private void search(String keyword) { if (keyword == null || keyword.isBlank()) return; status.setText("正在搜索…"); searchSpinner.setVisible(true); api.search(keyword.trim(), source.getValue()).thenAccept(r -> Platform.runLater(() -> { songs.setAll(r); searchSpinner.setVisible(false); status.setText("找到 " + r.size() + " 首歌曲"); animateResults(); })).exceptionally(e -> { Platform.runLater(() -> { searchSpinner.setVisible(false); status.setText("搜索失败，请检查网络"); }); return null; }); }
@@ -649,7 +672,7 @@ public class HelloController {
     private void animateResults() { list.setOpacity(0); list.setTranslateY(14); FadeTransition fade = new FadeTransition(Duration.millis(360), list); fade.setToValue(1); TranslateTransition slide = new TranslateTransition(Duration.millis(360), list); slide.setToY(0); new ParallelTransition(fade, slide).play(); }
     private void play(Song song) {
         if (song != null && song.id().startsWith("local:")) { playLocal(song); return; }
-        final long request = ++playGeneration; currentSong = song; setFavoriteIcon(hasFavorite(song.id())); int index = songs.indexOf(song); if (index >= 0) list.getSelectionModel().select(index); if (recentSongs.stream().noneMatch(existing -> existing.id().equals(song.id()))) { recentSongs.add(song); savedState.save(); } historySongs.removeIf(existing -> existing.id().equals(song.id())); historySongs.add(0, song); title.setText(song.name()); artist.setText(song.artist()); status.setText("正在加载歌曲…"); progress.setValue(0); elapsed.setText("0:00"); duration.setText("0:00"); if (player != null) { player.stop(); player.dispose(); player = null; } api.details(song).thenCombine(api.lyric(song), (detail, lyric) -> detail.withDetails(detail.coverUrl(), lyric)).thenCompose(detail -> { if (request != playGeneration) return CompletableFuture.completedFuture(null); currentSong = detail; Platform.runLater(() -> { if (request == playGeneration) { setFavoriteIcon(hasFavorite(detail.id())); updateDetails(detail); } }); return api.audioUrl(detail); }).thenAccept(url -> Platform.runLater(() -> startMedia(url, request))).exceptionally(e -> { if (request == playGeneration) Platform.runLater(() -> status.setText("歌曲详情或播放地址获取失败")); return null; }); }
+        final long request = ++playGeneration; currentSong = song; setFavoriteIcon(hasFavorite(song.id())); int index = songs.indexOf(song); if (index >= 0) list.getSelectionModel().select(index); if (recentSongs.stream().noneMatch(existing -> existing.id().equals(song.id()))) { recentSongs.add(song); savedState.save(); } if (savedState.recordHistory) { historySongs.removeIf(existing -> existing.id().equals(song.id())); historySongs.add(0, song); } title.setText(song.name()); artist.setText(song.artist()); status.setText("正在加载歌曲…"); progress.setValue(0); elapsed.setText("0:00"); duration.setText("0:00"); if (player != null) { player.stop(); player.dispose(); player = null; } api.details(song).thenCombine(api.lyric(song), (detail, lyric) -> detail.withDetails(detail.coverUrl(), lyric)).thenCompose(detail -> { if (request != playGeneration) return CompletableFuture.completedFuture(null); currentSong = detail; Platform.runLater(() -> { if (request == playGeneration) { setFavoriteIcon(hasFavorite(detail.id())); updateDetails(detail); } }); return api.audioUrl(detail); }).thenAccept(url -> Platform.runLater(() -> startMedia(url, request))).exceptionally(e -> { if (request == playGeneration) Platform.runLater(() -> status.setText("歌曲详情或播放地址获取失败")); return null; }); }
     private void playLocal(Song song) {
         final long request = ++playGeneration;
         currentSong = song; setFavoriteIcon(hasFavorite(song.id()));
@@ -663,6 +686,7 @@ public class HelloController {
     private void enqueueSong(Song song) {
         if (song == null) return;
         if (recentSongs.stream().noneMatch(existing -> existing.id().equals(song.id()))) recentSongs.add(song);
+        if (!savedState.recordHistory) return;
         historySongs.removeIf(existing -> existing.id().equals(song.id()));
         historySongs.add(0, song);
     }

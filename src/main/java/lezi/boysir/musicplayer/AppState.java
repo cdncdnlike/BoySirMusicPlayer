@@ -20,6 +20,7 @@ public final class AppState {
     public boolean showTranslation = true, floatingTop;
     public boolean floatingVisible;
     public boolean showSpectrum = true;
+    public boolean recordHistory = true;
     public boolean minimizeToTray = true;
     public boolean autoStart;
     public boolean keyboardShortcuts = true;
@@ -64,6 +65,7 @@ public final class AppState {
             state.floatingTop = bool(json, "floatingTop", state.floatingTop);
             state.floatingVisible = bool(json, "floatingVisible", state.floatingVisible);
             state.showSpectrum = bool(json, "showSpectrum", state.showSpectrum);
+            state.recordHistory = bool(json, "recordHistory", state.recordHistory);
             state.minimizeToTray = bool(json, "minimizeToTray", state.minimizeToTray);
             state.autoStart = bool(json, "autoStart", state.autoStart);
             state.keyboardShortcuts = bool(json, "keyboardShortcuts", state.keyboardShortcuts);
@@ -119,6 +121,7 @@ public final class AppState {
                 "  \"floatingTop\": " + floatingTop + ",\n" +
                 "  \"floatingVisible\": " + floatingVisible + ",\n" +
                 "  \"showSpectrum\": " + showSpectrum + ",\n" +
+                "  \"recordHistory\": " + recordHistory + ",\n" +
                 "  \"minimizeToTray\": " + minimizeToTray + ",\n" +
                 "  \"autoStart\": " + autoStart + ",\n" +
                 "  \"keyboardShortcuts\": " + keyboardShortcuts + ",\n" +
