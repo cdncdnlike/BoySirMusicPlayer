@@ -50,6 +50,7 @@
 .source-select { -fx-background-color: #f3edf7; -fx-background-radius: 14px; -fx-border-radius: 14px; -fx-pref-width: 104px; -fx-min-width: 104px; -fx-max-width: 104px; -fx-padding: 3px 6px; -fx-cursor: hand; } .source-select .text-field { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0 3px; -fx-alignment: center-left; -fx-cursor: hand; } .source-select .caret { -fx-background-color: #6750a4; -fx-shape: "M 0 0 L 10 0 L 5 6 Z"; -fx-min-width: 8px; -fx-pref-width: 8px; -fx-max-width: 8px; -fx-min-height: 5px; -fx-pref-height: 5px; -fx-max-height: 5px; } .source-select .caret .mfx-font-icon { visibility: hidden; }
 .icon-button, .transport { -fx-background-color: transparent; -fx-background-radius: 24px; -fx-border-radius: 24px; -fx-background-insets: 0; -fx-font-size: 21px; -fx-text-fill: #6750a4; -fx-alignment: center; -fx-padding: 0; }
 .transport { -fx-min-width: 44px; -fx-pref-width: 44px; -fx-max-width: 44px; -fx-min-height: 44px; -fx-pref-height: 44px; -fx-max-height: 44px; }
+.transport.option-button { -fx-min-width: 38px; -fx-pref-width: 38px; -fx-max-width: 38px; -fx-min-height: 38px; -fx-pref-height: 38px; -fx-max-height: 38px; -fx-font-size: 18px; }
 .icon-button:hover, .transport:hover { -fx-background-color: #eee6f4; -fx-background-radius: 24px; }
 .transport-active { -fx-background-color: #e8def8; -fx-text-fill: #4f378b; }
 .icon-button:pressed, .transport:pressed, .icon-button:focused, .transport:focused { -fx-background-color: #ddd0ee; -fx-background-radius: 24px; -fx-border-radius: 24px; -fx-background-insets: 0; }
@@ -92,8 +93,12 @@
 .mfx-toggle-button { -fx-background-color: transparent; -fx-text-fill: #6750a4; -fx-font-size: 13px; -fx-padding: 4px 8px; -fx-background-radius: 14px; -fx-border-radius: 14px; -fx-alignment: center; } .mfx-toggle-button:hover { -fx-background-color: #eee6f4; } .mfx-toggle-button:selected { -fx-background-color: #e8def8; -fx-text-fill: #4f378b; }
 .clear-playlist { -fx-background-color: #e8def8; -fx-background-radius: 14px; -fx-text-fill: #6750a4; -fx-padding: 7px 14px; }
 .settings-grid .color-picker { -fx-background-radius: 12px; } .transport-active { -fx-font-weight: bold; }
-.context-menu { -fx-background-color: #fffaff; -fx-background-radius: 12px; -fx-border-color: #e8def8; -fx-border-radius: 12px; -fx-padding: 5px; }
-.context-menu .menu-item { -fx-background-radius: 8px; -fx-padding: 8px 14px; } .context-menu .menu-item:hover { -fx-background-color: #eee6f4; }
+.context-menu { -fx-background-color: #fffbff; -fx-background-insets: 0; -fx-background-radius: 14px; -fx-border-color: #e8def8; -fx-border-width: 1px; -fx-border-radius: 14px; -fx-padding: 6px; -fx-font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif; -fx-font-size: 13px; -fx-effect: dropshadow(gaussian, rgba(40,20,50,.20), 16, .25, 0, 5); }
+.context-menu .menu-item { -fx-background-color: transparent; -fx-background-radius: 10px; -fx-padding: 9px 16px; }
+.context-menu .menu-item > .label { -fx-text-fill: #1d1b20; }
+.context-menu .menu-item:focused, .context-menu .menu-item:hover { -fx-background-color: #eee6f4; }
+.context-menu .menu-item:focused > .label, .context-menu .menu-item:hover > .label { -fx-text-fill: #4f378b; }
+.context-menu .menu-item:pressed { -fx-background-color: #ddd0ee; }
 .custom-popup, .custom-speed-popup { -fx-background-color: #fffaff; -fx-background-radius: 14px; -fx-border-color: #e8def8; -fx-border-radius: 14px; -fx-padding: 6px; -fx-effect: dropshadow(gaussian, rgba(40,20,50,.20), 16, .25, 0, 5); }
 .popup-action { -fx-background-color: transparent; -fx-background-radius: 9px; -fx-text-fill: #49454f; -fx-padding: 8px 13px; -fx-alignment: center-left; } .popup-action:hover { -fx-background-color: #eee6f4; }
 .floating-lyric-pane { -fx-background-color: transparent; -fx-padding: 12px 18px; -fx-min-height: 112px; }
@@ -190,7 +195,7 @@
 .policy-button { -fx-font-size: 11px; -fx-background-radius: 14px; -fx-padding: 5px 10px; -fx-cursor: hand; }
 .shortcut-field { -fx-background-color: #f3edf7; -fx-background-radius: 10px; -fx-border-color: transparent; -fx-padding: 5px 9px; -fx-font-size: 12px; -fx-alignment: center; -fx-cursor: hand; }
 .shortcut-field .text-field { -fx-alignment: center; -fx-padding: 0; }
-.shortcut-field { -fx-pref-height: 32px; -fx-min-height: 32px; -fx-max-height: 32px; -fx-line-height: 32px; }
+.shortcut-field { -fx-pref-height: 32px; -fx-min-height: 32px; -fx-max-height: 32px; }
 .settings-column { -fx-padding: 0 0 12px 0; }
 .shortcut-field:focused { -fx-border-color: #6750a4; -fx-border-width: 1px; -fx-border-radius: 10px; }
 .dark-theme .shortcut-field { -fx-background-color: #302d36; -fx-text-fill: #eee8f0; }
