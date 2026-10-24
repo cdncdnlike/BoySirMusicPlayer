@@ -68,5 +68,11 @@ public class HelloApplication extends Application {
         }
     }
 
-    public static void main(String[] args) { launch(args); }
+    public static void main(String[] args) {
+        System.setProperty("prism.lcdtext", "true");
+        System.setProperty("prism.text", "t2k");
+        System.setProperty("prism.subpixeltext", "true");
+        System.setProperty("prism.allowhidpi", "true");
+        launch(args);
+    }
 }
