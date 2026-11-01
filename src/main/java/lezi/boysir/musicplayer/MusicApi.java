@@ -27,6 +27,13 @@ public class MusicApi {
     }
     public CompletableFuture<List<Song>> search(String key, String source) { return "腾讯云".equals(source) ? get("https://cyapi.top/API/qq_music.php?apikey=62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4&msg=" + enc(key) + "&num=30&type=json").thenApply(this::qqSongs) : get("https://msapi.awup.cn/search?keywords=" + enc(key)).thenApply(this::songs); }
     public CompletableFuture<List<Song>> search(String key) { return search(key, "网易云"); }
+    /** Imports a public NetEase playlist without importing EchoMusic's implementation. */
+    public CompletableFuture<List<Song>> playlist(String input) {
+        if (input == null || input.isBlank()) return CompletableFuture.failedFuture(new IOException("歌单链接为空"));
+        Matcher netease = Pattern.compile("(?:playlist\\?id=|/playlist/)(\\d+)").matcher(input);
+        if (!netease.find()) return CompletableFuture.failedFuture(new IOException("目前仅支持网易云歌单链接"));
+        return get("https://msapi.awup.cn/playlist/detail?id=" + enc(netease.group(1))).thenApply(this::playlistSongs);
+    }
     public CompletableFuture<Song> details(Song song) { return song.id().startsWith("qq:") ? qqDetails(song) : get("https://msapi.awup.cn/song/detail?ids=" + enc(song.id())).thenApply(j -> song.withDetails(find(j, "picUrl"), "").withAlbum(findAfter(j, "\"al\"", "name"))); }
     public CompletableFuture<String> lyric(Song song) { return song.id().startsWith("qq:") ? qqDetails(song).thenApply(Song::lyric) : lyric(song.id()); }
     public CompletableFuture<String> lyric(String id) { if (id.startsWith("qq:")) return CompletableFuture.completedFuture(qqLyrics.getOrDefault(id, "")); return get("https://msapi.awup.cn/lyric?id=" + enc(id)).thenApply(j -> findNested(j, "lrc", "lyric") + "\n---TRANSLATION---\n" + findNested(j, "tlyric", "lyric")); }
@@ -99,6 +106,20 @@ public class MusicApi {
         return result;
     }
     private List<Song> qqSongs(String json) { List<Song> out=new ArrayList<>(); Matcher m=Pattern.compile("\\{\\s*\\\"name\\\"\\s*:\\s*\\\"(.*?)\\\"[\\s\\S]*?\\\"artists\\\"\\s*:\\s*\\\"(.*?)\\\"[\\s\\S]*?\\\"id\\\"\\s*:\\s*\\\"(.*?)\\\"[\\s\\S]*?\\\"cover\\\"\\s*:\\s*\\\"(.*?)\\\"\\s*\\}").matcher(json); int n=1; while(m.find()&&out.size()<30) out.add(new Song("qq:"+n+++":"+clean(m.group(3)),clean(m.group(1)),clean(m.group(2)),"",clean(m.group(4)),"")); return out; }
+    private List<Song> playlistSongs(String json) {
+        List<Song> out = new ArrayList<>();
+        int songsAt = json.indexOf("\"tracks\"");
+        String body = songsAt >= 0 ? json.substring(songsAt) : json;
+        // Track objects use NetEase's `ar` field. Some proxy versions rename it
+        // to `artists`; anchor on the track name before id so an artist/album id
+        // can never be mistaken for the track id.
+        Matcher track = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"[\\s\\S]{0,180}?\\\"id\\\"\\s*:\\s*(\\d+)[\\s\\S]{0,500}?(?:\\\"ar\\\"|\\\"artists\\\")\\s*:\\s*\\[\\s*\\{[\\s\\S]{0,180}?\\\"name\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"").matcher(body);
+        while (track.find() && out.size() < 200) {
+            String id = track.group(2);
+            if (out.stream().noneMatch(song -> song.id().equals(id))) out.add(new Song(id, clean(track.group(1)), clean(track.group(3)), ""));
+        }
+        return out;
+    }
     private String url(String json) { Matcher m = Pattern.compile("\\\"url\\\"\\s*:\\s*\\\"(.*?)\\\"").matcher(json); return m.find() ? clean(m.group(1)) : (json.startsWith("http") ? json.trim() : ""); }
     private String find(String json, String key) { Matcher m = Pattern.compile("\\\"" + key + "\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"").matcher(json); return m.find() ? clean(m.group(1)) : ""; }
     private String findAfter(String json, String anchor, String key) { int at = json.indexOf(anchor); return at < 0 ? "" : find(json.substring(at), key); }

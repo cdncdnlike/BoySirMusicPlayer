@@ -23,9 +23,11 @@ public class HelloApplication extends Application {
                 .build()
                 .setGlobal();
         HelloController controller = new HelloController();
+        if (controller.usesCustomWindowChrome()) stage.initStyle(javafx.stage.StageStyle.UNDECORATED);
         Scene scene = new Scene(controller.view(), 1180, 760);
+        if (controller.usesCustomWindowChrome()) scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         scene.getStylesheets().add(HelloApplication.class.getResource("app.css").toExternalForm());
-        stage.setTitle("BoySir Music Player (development version)");
+        stage.setTitle("BoySir Music Player");
         stage.setMinWidth(980);
         stage.setMinHeight(640);
         stage.setScene(scene);
@@ -61,6 +63,14 @@ public class HelloApplication extends Application {
     /** Loads the bundled Font Awesome icon fonts so the transport/favorite glyphs render
      *  identically on every machine instead of depending on system icon fonts. */
     private void loadIconFonts() {
+        // HarmonyOS Sans is preferred when bundled by the distributor. The CSS
+        // fallback chain keeps existing installations usable when the optional
+        // font resource is not present.
+        for (String path : new String[]{"fonts/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.ttf", "fonts/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Medium.ttf", "fonts/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Bold.ttf", "fonts/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Black.ttf"}) {
+            try (var in = HelloApplication.class.getResourceAsStream(path)) {
+                if (in != null) javafx.scene.text.Font.loadFont(in, 12);
+            } catch (Exception ignored) { }
+        }
         for (String path : new String[]{"fonts/fa-solid-900.ttf", "fonts/fa-regular-400.ttf"}) {
             try (var in = HelloApplication.class.getResourceAsStream(path)) {
                 if (in != null) javafx.scene.text.Font.loadFont(in, 12);

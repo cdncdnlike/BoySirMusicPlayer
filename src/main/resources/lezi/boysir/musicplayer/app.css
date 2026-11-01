@@ -1,10 +1,20 @@
-.root, .root * { -fx-font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif; -fx-font-smoothing-type: lcd; }
+.root, .root * { -fx-font-family: "HarmonyOS Sans SC"; -fx-font-smoothing-type: gray; }
 .transport, .play-button, .icon-button, .row-play { -fx-font-family: "Material Icons", "Segoe UI Symbol", "Microsoft YaHei UI", sans-serif; -fx-text-overrun: clip; -fx-font-smoothing-type: gray; }
 .text-button { -fx-font-smoothing-type: lcd; }
 /* Bundled Font Awesome 6 Free. Solid (900) and Regular (400) are separate families in JavaFX. */
 .fa-solid, .fa-solid .text { -fx-font-family: "Font Awesome 6 Pro Solid"; -fx-font-weight: 900; -fx-font-smoothing-type: gray; }
 .fa-regular, .fa-regular .text { -fx-font-family: "Font Awesome 6 Pro Regular"; -fx-font-weight: normal; -fx-font-smoothing-type: gray; }
 .root { -fx-background-color: #fffbff; -fx-text-fill: #1d1b20; }
+.window-chrome { -fx-background-color: #fffbff; -fx-border-color: transparent transparent #eee7ef transparent; -fx-min-height: 36px; -fx-pref-height: 36px; }
+.window-title { -fx-font-family: "HarmonyOS Sans SC"; -fx-font-size: 15px; -fx-font-weight: 800; -fx-text-fill: #49454f; }
+.window-control { -fx-background-color: transparent; -fx-background-radius: 9px; -fx-text-fill: #6750a4; -fx-font-size: 13px; -fx-padding: 0; -fx-cursor: hand; }
+.window-control:hover { -fx-background-color: #eee6f4; }
+.window-close:hover { -fx-background-color: #ba1a1a; -fx-text-fill: white; }
+.dark-theme .window-chrome { -fx-background-color: #211f26; -fx-border-color: transparent transparent #3b3742 transparent; }
+.dark-theme .window-title { -fx-text-fill: #e6e0e9; }
+.dark-theme .window-control { -fx-text-fill: #d0bcff; }
+.dark-theme .window-control:hover { -fx-background-color: #393440; }
+.brand-logo { -fx-smooth: true; }
 .dark-theme { -fx-background-color: #141218; -fx-text-fill: #e6e0e9; }
 .dark-theme .content-card, .dark-theme .lyrics-card, .dark-theme .player-bar, .dark-theme .navigation-rail, .dark-theme .top-app-bar { -fx-background-color: #211f26; }
 .dark-theme .page-title, .dark-theme .section-title, .dark-theme .song-name, .dark-theme .playing-name { -fx-text-fill: #e6e0e9; }
@@ -37,8 +47,9 @@
 .nav-selected { -fx-background-color: #e8def8; -fx-text-fill: #21005d; }
 .mfx-button.nav-item:armed, .mfx-button.nav-item:focused, .mfx-button.nav-item:hover { -fx-background-radius: 18px; -fx-border-radius: 18px; -fx-background-insets: 0; }
 .nav-icon { -fx-font-size: 23px; -fx-font-weight: bold; -fx-text-fill: #49454f; }
-.nav-caption { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #49454f; }
+.nav-caption { -fx-font-family: "HarmonyOS Sans SC"; -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #49454f; }
 .top-app-bar { -fx-background-color: #fffbff; -fx-border-color: transparent transparent #eee7ef transparent; -fx-min-height: 78px; }
+.brand, .subtitle, .muted, .status, .page-title, .section-title, .song-name, .song-artist, .playing-name, .playing-artist, .lyric-line, .lyric-translation { -fx-font-family: "HarmonyOS Sans SC"; }
 .brand { -fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: #1d1b20; } .subtitle, .muted, .status { -fx-text-fill: #79747e; -fx-font-size: 12px; }
 .search-box { -fx-min-width: 320px; -fx-pref-width: 390px; -fx-alignment: center-right; }
 .search-field { -fx-background-color: #f3edf7; -fx-background-radius: 24px; -fx-border-color: transparent; -fx-padding: 0 18px; -fx-alignment: center-left; -fx-font-size: 14px; -fx-pref-width: 320px; -fx-min-width: 220px; }
@@ -62,10 +73,17 @@
 .page-title { -fx-font-size: 30px; -fx-font-weight: 800; -fx-text-fill: #1d1b20; } .content-card { -fx-background-color: #f7f2fa; -fx-background-radius: 28px; -fx-max-width: Infinity; -fx-max-height: Infinity; }
 .main-split { -fx-background-color: transparent; -fx-padding: 0; } .main-split .split-pane-divider { -fx-background-color: transparent; -fx-padding: 0 8px; }
 .lyrics-card { -fx-background-color: #f3edf7; -fx-background-radius: 28px; } .section-title { -fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: #1d1b20; } .translation-toggle { -fx-text-fill: #6750a4; }
-.lyrics-scroll { -fx-background-color: transparent; -fx-border-color: transparent; } .lyrics-scroll > .viewport { -fx-background-color: transparent; } .lyric-lines { -fx-padding: 120px 4px; -fx-alignment: center; }
-.lyric-line { -fx-text-fill: #79747e; -fx-font-size: 14px; -fx-line-spacing: 4px; -fx-text-alignment: center; -fx-font-smoothing-type: lcd; }
-.lyric-translation { -fx-text-fill: #9a91a3; -fx-font-size: 12px; -fx-font-smoothing-type: lcd; }
-.lyric-line:hover { -fx-text-fill: #6750a4; -fx-font-size: 15px; }
+.lyrics-scroll { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; }
+.lyrics-scroll > .viewport { -fx-background-color: transparent; }
+.lyric-lines { -fx-padding: 150px 16px; -fx-alignment: center; -fx-spacing: 18px; -fx-fill-width: true; }
+.lyric-row { -fx-padding: 4px 12px; -fx-background-radius: 14px; -fx-alignment: center; -fx-cursor: hand; -fx-max-width: Infinity; }
+.lyric-row-left { -fx-alignment: center-left; }
+.lyric-row-center { -fx-alignment: center; }
+.lyric-row-left .lyric-line, .lyric-row-left .lyric-translation { -fx-alignment: center-left; -fx-text-alignment: left; }
+.lyric-row:hover { -fx-background-color: rgba(103,80,164,.08); -fx-effect: dropshadow(gaussian, rgba(76,52,120,.22), 12, .18, 0, 3); }
+.lyric-line { -fx-text-fill: #79747e; -fx-font-size: 15px; -fx-line-spacing: 5px; -fx-alignment: center; -fx-text-alignment: center; -fx-font-smoothing-type: gray; }
+.lyric-translation { -fx-text-fill: #9a91a3; -fx-font-size: 12px; -fx-line-spacing: 3px; -fx-alignment: center; -fx-text-alignment: center; -fx-font-smoothing-type: gray; }
+.lyric-line:hover { -fx-text-fill: #6750a4; }
 .list-view { -fx-background-color: transparent; -fx-border-width: 0; } .list-cell { -fx-background-color: transparent; -fx-padding: 14px 16px; -fx-border-color: transparent transparent #e8e0eb transparent; }
 .list-cell:hover { -fx-background-color: #eee6f4; -fx-background-radius: 16px; } .index { -fx-text-fill: #79747e; -fx-font-size: 12px; -fx-min-width: 24px; }
 .song-name, .playing-name { -fx-font-size: 15px; -fx-font-weight: 700; -fx-text-fill: #29252d; } .song-artist, .playing-artist, .album { -fx-text-fill: #79747e; -fx-font-size: 12px; } .album { -fx-min-width: 160px; -fx-pref-width: 160px; }
@@ -78,7 +96,12 @@
 .np-cover { -fx-background-color: #6750a4; -fx-background-radius: 20px; -fx-effect: dropshadow(gaussian, rgba(40,25,70,.28), 26, .16, 0, 10); }
 .dark-theme .np-cover { -fx-background-color: #2b2733; -fx-effect: dropshadow(gaussian, rgba(0,0,0,.5), 26, .18, 0, 10); }
 .artwork:hover { -fx-cursor: hand; }
-.lyric-active { -fx-text-fill: #6750a4; -fx-font-size: 18px; -fx-font-weight: bold; -fx-translate-x: 6px; -fx-font-smoothing-type: gray; }
+.lyric-row-active { -fx-background-color: rgba(103,80,164,.12); -fx-padding: 10px 14px; -fx-effect: dropshadow(gaussian, rgba(76,52,120,.26), 14, .2, 0, 4); }
+.lyric-row-active .lyric-line { -fx-text-fill: #6750a4; -fx-font-size: 19px; -fx-font-weight: bold; -fx-font-smoothing-type: gray; }
+.lyric-row-active .lyric-translation { -fx-text-fill: #7d668e; -fx-font-size: 13px; }
+.dark-theme .lyric-row:hover { -fx-background-color: rgba(208,188,255,.10); }
+.dark-theme .lyric-row-active { -fx-background-color: rgba(208,188,255,.14); }
+.dark-theme .lyric-row-active .lyric-line { -fx-text-fill: #d0bcff; }
 /* Large lyric sizes (38px+) use gray smoothing instead of lcd to avoid subpixel artifacts on Windows */
 .lyric-line-large { -fx-font-smoothing-type: gray !important; }
 .speed-select { -fx-background-color: #e8def8; -fx-background-radius: 14px; -fx-border-radius: 14px; -fx-padding: 2px 7px; -fx-min-width: 84px; -fx-pref-width: 84px; -fx-max-width: 84px; -fx-font-size: 12px; } .speed-select .text-field { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; -fx-min-width: 52px; -fx-pref-width: 52px; -fx-alignment: center-left; } .speed-select .caret { -fx-background-color: #6750a4; -fx-shape: "M 0 0 L 10 0 L 5 6 Z"; -fx-min-width: 8px; -fx-pref-width: 8px; -fx-max-width: 8px; -fx-min-height: 5px; -fx-pref-height: 5px; -fx-max-height: 5px; } .speed-select .caret .mfx-font-icon { visibility: hidden; }
@@ -199,3 +222,7 @@
 .settings-column { -fx-padding: 0 0 12px 0; }
 .shortcut-field:focused { -fx-border-color: #6750a4; -fx-border-width: 1px; -fx-border-radius: 10px; }
 .dark-theme .shortcut-field { -fx-background-color: #302d36; -fx-text-fill: #eee8f0; }
+.photo-mode { -fx-background-color: rgba(18, 15, 24, .82); -fx-background-radius: 26px; -fx-border-color: rgba(255,255,255,.14); -fx-border-radius: 26px; }
+.photo-mode .playing-name, .photo-mode .playing-artist, .photo-mode .lyric-line, .photo-mode .lyric-translation, .photo-mode .section-title { -fx-text-fill: white; }
+.photo-mode .lyrics-card { -fx-background-color: rgba(12,10,16,.46); -fx-border-color: rgba(255,255,255,.12); }
+.photo-mode .lyrics-scroll, .photo-mode .lyrics-scroll > .viewport { -fx-background-color: transparent; }

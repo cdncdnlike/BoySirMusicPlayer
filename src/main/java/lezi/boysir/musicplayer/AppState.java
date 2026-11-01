@@ -17,6 +17,8 @@ public final class AppState {
     public double floatingWidth = 600;
     public int sleepTimerMinutes;
     public String floatingColor = "#FFFFFF", translationColor = "#EBEBEB", source = "网易云";
+    public String lyricAlignment = "居中";
+    public String windowStyle = "Windows 原生";
     public boolean showTranslation = true, floatingTop;
     public boolean floatingVisible;
     public boolean showSpectrum = true;
@@ -61,6 +63,8 @@ public final class AppState {
             state.floatingColor = string(json, "floatingColor", state.floatingColor);
             state.translationColor = string(json, "translationColor", state.translationColor);
             state.source = string(json, "source", state.source);
+            state.lyricAlignment = "左对齐".equals(string(json, "lyricAlignment", state.lyricAlignment)) ? "左对齐" : "居中";
+            state.windowStyle = "自绘窗口".equals(string(json, "windowStyle", state.windowStyle)) ? "自绘窗口" : "Windows 原生";
             state.showTranslation = bool(json, "showTranslation", state.showTranslation);
             state.floatingTop = bool(json, "floatingTop", state.floatingTop);
             state.floatingVisible = bool(json, "floatingVisible", state.floatingVisible);
@@ -117,6 +121,8 @@ public final class AppState {
                 "  \"floatingColor\": \"" + escape(floatingColor) + "\",\n" +
                 "  \"translationColor\": \"" + escape(translationColor) + "\",\n" +
                 "  \"source\": \"" + escape(source) + "\",\n" +
+                "  \"lyricAlignment\": \"" + escape(lyricAlignment) + "\",\n" +
+                "  \"windowStyle\": \"" + escape(windowStyle) + "\",\n" +
                 "  \"showTranslation\": " + showTranslation + ",\n" +
                 "  \"floatingTop\": " + floatingTop + ",\n" +
                 "  \"floatingVisible\": " + floatingVisible + ",\n" +

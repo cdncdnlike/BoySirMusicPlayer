@@ -36,6 +36,7 @@ import javafx.scene.shape.Circle;
 import javafx.stage.Window;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser;
 import javafx.scene.paint.Color;
 import javafx.scene.input.MouseEvent;
@@ -69,7 +70,7 @@ public class HelloController {
     private final MFXProgressSpinner searchSpinner = new MFXProgressSpinner();
     private final MFXProgressBar updateProgress = new MFXProgressBar();
     private final Label title = new Label("还没有播放歌曲"), artist = new Label("搜索歌曲开始播放"), status = new Label("准备就绪");
-    private final Label coverFallback = new Label("♫");
+    private final Label coverFallback = new Label("\uF001");
     private final ImageView cover = new ImageView();
     // The transport controls intentionally use the lightweight JavaFX slider
     // style used by the original player. Settings sliders remain MFXSlider.
@@ -100,6 +101,8 @@ public class HelloController {
     private final MFXTextField shortcutPreviousField = new MFXTextField();
     private final MFXTextField shortcutNextField = new MFXTextField();
     private final MFXComboBox<String> themeSelect = new MFXComboBox<>(FXCollections.observableArrayList("跟随系统", "明亮", "黑暗"));
+    private final MFXComboBox<String> lyricAlignmentSelect = new MFXComboBox<>(FXCollections.observableArrayList("居中", "左对齐"));
+    private final MFXComboBox<String> windowStyleSelect = new MFXComboBox<>(FXCollections.observableArrayList("Windows 原生", "自绘窗口"));
     private final MFXButton backgroundButton = new MFXButton("选择背景图片");
     private MFXButton floatingToggleButton;
     private BorderPane rootPane;
@@ -108,14 +111,18 @@ public class HelloController {
     private final ObservableList<Song> historySongs = FXCollections.observableArrayList();
     private final MFXButton favorite = new MFXButton("\uF004");
     private final Label saying = new Label("加载一言…");
-    private final Button shuffle = new MFXButton("⤨"), repeat = new MFXButton("\uF363");
-    private final Button toggle = new MFXButton("▶");
+    private final Button shuffle = new MFXButton("\uF074"), repeat = new MFXButton("\uF363");
+    private final Button toggle = new MFXButton("\uF04B");
     private MediaPlayer player;
     private Song currentSong;
     private long playGeneration;
     private boolean shuffleEnabled;
     private int repeatMode;
     private Timeline sleepTimeline;
+    private Timeline fadeTimeline;
+    private boolean photoMode;
+    private int lyricActiveIndex = -1;
+    private int nowPlayingActiveIndex = -1;
     // Real-time audio spectrum visualizer. Magnitudes are delivered on the FX
     // thread by the MediaPlayer; the AnimationTimer smooths them into falling bars.
     private static final int SPECTRUM_BANDS = 48;
@@ -162,6 +169,21 @@ public class HelloController {
         });
         historySongs.addListener((javafx.collections.ListChangeListener<Song>) change -> { savedState.history.clear(); savedState.history.addAll(historySongs); savedState.save(); });
         lyricOffsetSlider.setValue(savedState.lyricOffset);
+        lyricAlignmentSelect.setValue("左对齐".equals(savedState.lyricAlignment) ? "左对齐" : "居中");
+        lyricAlignmentSelect.setText(lyricAlignmentSelect.getValue());
+        lyricAlignmentSelect.setFloatMode(FloatMode.DISABLED);
+        lyricAlignmentSelect.getStyleClass().add("source-select");
+        lyricAlignmentSelect.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!lyricAlignmentSelect.isShowing()) lyricAlignmentSelect.show(); }));
+        lyricAlignmentSelect.setOnAction(e -> {
+            savedState.lyricAlignment = "左对齐".equals(lyricAlignmentSelect.getValue()) ? "左对齐" : "居中";
+            lyricAlignmentSelect.setText(savedState.lyricAlignment);
+            savedState.save();
+            if (currentSong != null) updateDetails(currentSong);
+        });
+        windowStyleSelect.setValue("自绘窗口".equals(savedState.windowStyle) ? "自绘窗口" : "Windows 原生");
+        windowStyleSelect.setText(windowStyleSelect.getValue()); windowStyleSelect.setFloatMode(FloatMode.DISABLED); windowStyleSelect.getStyleClass().add("source-select");
+        windowStyleSelect.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!windowStyleSelect.isShowing()) windowStyleSelect.show(); }));
+        windowStyleSelect.setOnAction(e -> { savedState.windowStyle = windowStyleSelect.getValue(); windowStyleSelect.setText(savedState.windowStyle); savedState.save(); status.setText("窗口样式将在重启后生效"); });
         lyricOffsetSlider.valueProperty().addListener((o, a, b) -> { savedState.lyricOffset = b.doubleValue(); savedState.save(); if (player != null) updateLyric(player.getCurrentTime().toSeconds()); });
         sleepTimerSelect.setValue(sleepTimerLabel(savedState.sleepTimerMinutes));
         sleepTimerSelect.setText(sleepTimerSelect.getValue());
@@ -333,18 +355,50 @@ public class HelloController {
 
     public Parent view() {
         BorderPane root = new BorderPane(); rootPane = root; root.getStyleClass().add("root"); applyTheme();
-        root.setLeft(navigation()); updateProgress.setProgress(0); updateProgress.setVisible(false); updateProgress.setManaged(false); updateProgress.setMaxWidth(Double.MAX_VALUE); updateProgress.getStyleClass().add("update-progress"); VBox top = new VBox(updateProgress, header()); VBox.setVgrow(updateProgress, Priority.NEVER); root.setTop(top); centerHost.getChildren().setAll(mainContent()); root.setCenter(centerHost); root.setBottom(playerBar()); if (savedState.floatingVisible) Platform.runLater(this::toggleFloatingLyrics); Platform.runLater(() -> checkForUpdate(false));
+        if (usesCustomWindowChrome()) { Rectangle windowClip = new Rectangle(); windowClip.setArcWidth(24); windowClip.setArcHeight(24); windowClip.widthProperty().bind(root.widthProperty()); windowClip.heightProperty().bind(root.heightProperty()); root.setClip(windowClip); }
+        root.setLeft(navigation()); updateProgress.setProgress(0); updateProgress.setVisible(false); updateProgress.setManaged(false); updateProgress.setMaxWidth(Double.MAX_VALUE); updateProgress.getStyleClass().add("update-progress"); VBox top = usesCustomWindowChrome() ? new VBox(updateProgress, windowChrome(), header()) : new VBox(updateProgress, header()); VBox.setVgrow(updateProgress, Priority.NEVER); root.setTop(top); centerHost.getChildren().setAll(mainContent()); root.setCenter(centerHost); root.setBottom(playerBar()); if (savedState.floatingVisible) Platform.runLater(this::toggleFloatingLyrics); Platform.runLater(() -> checkForUpdate(false));
         root.setFocusTraversable(true);
         root.setOnDragOver(e -> { if (e.getDragboard().hasFiles()) e.acceptTransferModes(javafx.scene.input.TransferMode.COPY); e.consume(); });
         root.setOnDragDropped(e -> { if (e.getDragboard().hasFiles()) { openFiles(e.getDragboard().getFiles().stream().map(File::getAbsolutePath).collect(Collectors.toList())); e.setDropCompleted(true); } else e.setDropCompleted(false); e.consume(); });
         root.addEventFilter(KeyEvent.KEY_PRESSED, e -> { if (e.getTarget() instanceof javafx.scene.control.TextInputControl) return; if (!savedState.keyboardShortcuts) return; if (matchesShortcut(e, savedState.shortcutPlay)) { toggle(); e.consume(); } else if (matchesShortcut(e, savedState.shortcutPrevious)) { previous(); e.consume(); } else if (matchesShortcut(e, savedState.shortcutNext)) { next(); e.consume(); } }); return root;
     }
 
+    public boolean usesCustomWindowChrome() { return "自绘窗口".equals(savedState.windowStyle); }
+
+    private Node windowChrome() {
+        ImageView titleIcon = new ImageView(new Image(getClass().getResource("app-logo.png").toExternalForm())); titleIcon.setFitWidth(22); titleIcon.setFitHeight(22); titleIcon.setPreserveRatio(true);
+        Label titleText = new Label("BoySir Music Player"); titleText.getStyleClass().add("window-title");
+        MFXButton minimize = new MFXButton("\uF068"), maximize = new MFXButton("\uF2D0"), close = new MFXButton("\uF00D");
+        for (Button button : new Button[]{minimize, maximize, close}) { button.getStyleClass().addAll("window-control", "fa-solid"); button.setMinSize(46, 34); button.setPrefSize(46, 34); button.setMaxSize(46, 34); button.setFocusTraversable(false); button.setOnMousePressed(e -> e.consume()); addWindowControlMotion(button); }
+        close.getStyleClass().add("window-close");
+        HBox bar = new HBox(10, titleIcon, titleText, new Region(), minimize, maximize, close); HBox.setHgrow(bar.getChildren().get(2), Priority.ALWAYS); bar.setAlignment(Pos.CENTER_LEFT); bar.setPadding(new Insets(0, 8, 0, 16)); bar.getStyleClass().add("window-chrome");
+        final double[] drag = new double[2];
+        bar.setOnMousePressed(e -> { drag[0] = e.getScreenX(); drag[1] = e.getScreenY(); });
+        bar.setOnMouseDragged(e -> { if (rootPane == null || rootPane.getScene() == null) return; Window window = rootPane.getScene().getWindow(); window.setX(window.getX() + e.getScreenX() - drag[0]); window.setY(window.getY() + e.getScreenY() - drag[1]); drag[0] = e.getScreenX(); drag[1] = e.getScreenY(); });
+        bar.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && rootPane != null && rootPane.getScene() != null) { Stage stage = (Stage) rootPane.getScene().getWindow(); stage.setMaximized(!stage.isMaximized()); animateWindowTransition(); } });
+        minimize.setOnAction(e -> { Stage stage = (Stage) rootPane.getScene().getWindow(); FadeTransition fade = new FadeTransition(Duration.millis(120), rootPane); fade.setToValue(0.2); fade.setOnFinished(x -> { stage.setIconified(true); rootPane.setOpacity(1); }); fade.play(); });
+        maximize.setOnAction(e -> { Stage stage = (Stage) rootPane.getScene().getWindow(); stage.setMaximized(!stage.isMaximized()); animateWindowTransition(); });
+        close.setOnAction(e -> rootPane.getScene().getWindow().fireEvent(new WindowEvent(rootPane.getScene().getWindow(), WindowEvent.WINDOW_CLOSE_REQUEST)));
+        return bar;
+    }
+
+    private void animateWindowTransition() {
+        rootPane.setOpacity(0.72); rootPane.setScaleX(0.985); rootPane.setScaleY(0.985);
+        FadeTransition fade = new FadeTransition(Duration.millis(180), rootPane); fade.setToValue(1);
+        ScaleTransition scale = new ScaleTransition(Duration.millis(180), rootPane); scale.setToX(1); scale.setToY(1); scale.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
+        new ParallelTransition(fade, scale).play();
+    }
+
+    private void addWindowControlMotion(Button button) {
+        button.setOnMouseEntered(e -> { ScaleTransition t = new ScaleTransition(Duration.millis(120), button); t.setToX(1.08); t.setToY(1.08); t.play(); });
+        button.setOnMouseExited(e -> { ScaleTransition t = new ScaleTransition(Duration.millis(140), button); t.setToX(1); t.setToY(1); t.play(); });
+    }
+
     public void shutdown() {
         shuttingDown = true;
         savedState.save();
         if (spectrumTimer != null) { spectrumTimer.stop(); spectrumTimer = null; }
-        if (player != null) { player.stop(); player.dispose(); player = null; }
+        stopCurrentPlayerWithFade();
         if (floatingStage != null) { floatingStage.hide(); floatingStage.close(); floatingStage = null; }
     }
 
@@ -373,12 +427,12 @@ public class HelloController {
 
     private VBox navigation() {
         ImageView logo = new ImageView(getClass().getResource("app-logo.png").toExternalForm()); logo.setFitWidth(48); logo.setFitHeight(48); logo.setPreserveRatio(true);
-        Button home = navButton("⌂", "首页"), library = navButton("♫", "音乐库"), playlists = navButton("\uE14C", "歌单"), settings = navButton("⚙", "设置"), about = navButton("ⓘ", "关于");
+        Button home = navButton("\uF015", "首页"), library = navButton("\uF001", "音乐库"), playlists = navButton("\uF03A", "歌单"), settings = navButton("\uF013", "设置"), about = navButton("\uF129", "关于");
         home.getStyleClass().add("nav-selected");
         home.setOnAction(e -> { select(home, library, playlists, settings, about); swapCenter(mainContent()); }); library.setOnAction(e -> { select(library, home, playlists, settings, about); swapCenter(libraryView()); }); playlists.setOnAction(e -> { select(playlists, home, library, settings, about); swapCenter(playlistView()); }); settings.setOnAction(e -> { select(settings, home, library, playlists, about); swapCenter(settingsView()); }); about.setOnAction(e -> { select(about, home, library, playlists, settings); swapCenter(aboutView()); });
         VBox rail = new VBox(18, logo, home, library, playlists, settings, about); rail.getStyleClass().add("navigation-rail"); rail.setAlignment(Pos.TOP_CENTER); rail.setPadding(new Insets(24, 12, 24, 12)); return rail;
     }
-    private Button navButton(String iconText, String caption) { Label icon = new Label(iconText); icon.getStyleClass().add("nav-icon"); Label text = new Label(caption); text.getStyleClass().add("nav-caption"); VBox graphic = new VBox(3, icon, text); graphic.setAlignment(Pos.CENTER); MFXButton button = new MFXButton(); button.setGraphic(graphic); button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); button.getStyleClass().add("nav-item"); button.setPrefSize(88, 64); configureRipple(button, 44); addPressAnimation(button); return button; }
+    private Button navButton(String iconText, String caption) { Label icon = new Label(iconText); icon.getStyleClass().addAll("nav-icon", "fa-solid"); Label text = new Label(caption); text.getStyleClass().add("nav-caption"); VBox graphic = new VBox(3, icon, text); graphic.setAlignment(Pos.CENTER); MFXButton button = new MFXButton(); button.setGraphic(graphic); button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); button.getStyleClass().add("nav-item"); button.setPrefSize(88, 64); configureRipple(button, 44); addPressAnimation(button); return button; }
     private void select(Button selected, Button... others) { selected.getStyleClass().add("nav-selected"); Arrays.stream(others).forEach(b -> b.getStyleClass().remove("nav-selected")); }
     private Node libraryView() {
         Label h=new Label("音乐库"); h.getStyleClass().add("page-title");
@@ -398,7 +452,7 @@ public class HelloController {
                 Label n = new Label(s.name()); n.getStyleClass().add("song-name");
                 Label a = new Label(s.artist()); a.getStyleClass().add("song-artist");
                 VBox info = new VBox(2, n, a);
-                Button b = new Button("▶"); b.getStyleClass().add("row-play"); addPressAnimation(b);
+                Button b = new Button("\uF04B"); b.getStyleClass().addAll("row-play", "fa-solid"); addPressAnimation(b);
                 b.setOnAction(x -> play(s));
                 setGraphic(new HBox(14, info, b));
                 MenuItem remove = new MenuItem("从音乐库删除");
@@ -426,9 +480,10 @@ public class HelloController {
     private Node playlistView() {
         Label h=new Label("歌单");h.getStyleClass().add("page-title");
         Label sub=new Label("本地歌单 · 最近播放与收藏");sub.getStyleClass().add("muted");
-        MFXButton clear=new MFXButton("清空歌单"); clear.getStyleClass().add("clear-playlist"); configureRipple(clear, 18); addPressAnimation(clear); clear.setOnAction(e -> { recentSongs.clear(); savedState.queue.clear(); savedState.save(); });
-        MFXButton clearHistory=new MFXButton("清除历史"); clearHistory.getStyleClass().add("clear-playlist"); configureRipple(clearHistory, 18); addPressAnimation(clearHistory); clearHistory.setOnAction(e -> { historySongs.clear(); savedState.history.clear(); savedState.save(); status.setText("播放历史已清除"); });
-        HBox heading=new HBox(8, new VBox(2,h,sub), new Region(), clearHistory, clear); HBox.setHgrow(heading.getChildren().get(1), Priority.ALWAYS); heading.setAlignment(Pos.CENTER_LEFT);
+        MFXButton importPlaylist = new MFXButton("导入歌单"); importPlaylist.getStyleClass().add("clear-playlist"); importPlaylist.setPrefHeight(34); importPlaylist.setPrefWidth(92); configureRipple(importPlaylist, 18); addPressAnimation(importPlaylist); importPlaylist.setOnAction(e -> importExternalPlaylist());
+        MFXButton clear=new MFXButton("清空歌单"); clear.getStyleClass().add("clear-playlist"); clear.setPrefSize(92, 34); configureRipple(clear, 18); addPressAnimation(clear); clear.setOnAction(e -> { recentSongs.clear(); savedState.queue.clear(); savedState.save(); });
+        MFXButton clearHistory=new MFXButton("清除历史"); clearHistory.getStyleClass().add("clear-playlist"); clearHistory.setPrefSize(92, 34); configureRipple(clearHistory, 18); addPressAnimation(clearHistory); clearHistory.setOnAction(e -> { historySongs.clear(); savedState.history.clear(); savedState.save(); status.setText("播放历史已清除"); });
+        HBox heading=new HBox(8, new VBox(2,h,sub), new Region(), importPlaylist, clearHistory, clear); HBox.setHgrow(heading.getChildren().get(1), Priority.ALWAYS); heading.setAlignment(Pos.CENTER_LEFT);
         ListView<Song> copy=new ListView<>(recentSongs); copy.setPlaceholder(new Label("播放歌曲后会出现在这里"));
         copy.setCellFactory(v->new ListCell<>(){
             private double dragY;
@@ -448,14 +503,15 @@ public class HelloController {
         lyricOffsetSlider.setSliderMode(SliderMode.SNAP_TO_TICKS); lyricOffsetSlider.setTickUnit(1); lyricOffsetSlider.setShowMajorTicks(false); lyricOffsetSlider.setShowMinorTicks(false); lyricOffsetSlider.setPrefWidth(300); lyricOffsetSlider.setValue(savedState.lyricOffset); sleepTimerSelect.setValue(sleepTimerLabel(savedState.sleepTimerMinutes)); sleepTimerSelect.setText(sleepTimerSelect.getValue()); sleepTimerSelect.setFloatMode(FloatMode.DISABLED); sleepTimerSelect.getStyleClass().add("source-select"); sleepTimerSelect.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!sleepTimerSelect.isShowing()) sleepTimerSelect.show(); }));
         GridPane grid = new GridPane(); grid.setHgap(18); grid.setVgap(16); grid.addRow(0,new Label("原文大小"),floatingSize); grid.addRow(1,new Label("翻译大小"),translationSize); grid.addRow(2,new Label("原文颜色"),floatingColor); grid.addRow(3,new Label("翻译颜色"),translationColor); grid.addRow(4,new Label("文字透明度"),floatingOpacity); grid.addRow(5,new Label("显示宽度"),floatingWidth); grid.addRow(6,floatingTop); ColumnConstraints cc=new ColumnConstraints();cc.setMinWidth(130);grid.getColumnConstraints().add(cc); grid.getStyleClass().add("settings-grid");
         showSpectrum.setSelected(savedState.showSpectrum);
-        GridPane playbackSettings = new GridPane(); playbackSettings.setHgap(18); playbackSettings.setVgap(16); playbackSettings.addRow(0, new Label("歌词偏移（秒）"), lyricOffsetSlider); playbackSettings.addRow(1, new Label("睡眠定时器"), sleepTimerSelect); playbackSettings.addRow(2, new Label("频谱可视化"), showSpectrum); playbackSettings.addRow(3, new Label("播放历史"), recordHistory); playbackSettings.getStyleClass().add("settings-grid");
+        GridPane playbackSettings = new GridPane(); playbackSettings.setHgap(18); playbackSettings.setVgap(16); playbackSettings.addRow(0, new Label("歌词偏移（秒）"), lyricOffsetSlider); playbackSettings.addRow(1, new Label("歌词对齐方式"), lyricAlignmentSelect); playbackSettings.addRow(2, new Label("睡眠定时器"), sleepTimerSelect); playbackSettings.addRow(3, new Label("频谱可视化"), showSpectrum); playbackSettings.addRow(4, new Label("播放历史"), recordHistory); playbackSettings.getStyleClass().add("settings-grid");
         MFXButton openConfig = new MFXButton("打开配置文件夹"); openConfig.setPrefHeight(34); openConfig.setPrefWidth(132); openConfig.getStyleClass().add("config-button"); configureRipple(openConfig, 16); addPressAnimation(openConfig); openConfig.setOnAction(e -> openConfigFolder());
         MFXButton clearConfig = new MFXButton("清空配置文件"); clearConfig.setPrefHeight(34); clearConfig.setPrefWidth(116); clearConfig.getStyleClass().add("danger-button"); configureRipple(clearConfig, 16); addPressAnimation(clearConfig); clearConfig.setOnAction(e -> clearConfig());
         MFXButton clearBackground = new MFXButton("清除背景"); clearBackground.setPrefHeight(34); clearBackground.setPrefWidth(116); clearBackground.getStyleClass().add("config-button"); configureRipple(clearBackground, 16); addPressAnimation(clearBackground); clearBackground.setOnAction(e -> { savedState.backgroundPath = ""; savedState.save(); applyTheme(); });
         MFXButton exportConfig = new MFXButton("导出配置"), importConfig = new MFXButton("导入配置"); exportConfig.setPrefHeight(34); exportConfig.setPrefWidth(116); importConfig.setPrefHeight(34); importConfig.setPrefWidth(116); exportConfig.getStyleClass().add("config-button"); importConfig.getStyleClass().add("config-button"); configureRipple(exportConfig, 16); configureRipple(importConfig, 16); addPressAnimation(exportConfig); addPressAnimation(importConfig); exportConfig.setOnAction(e -> exportConfig()); importConfig.setOnAction(e -> importConfig());
         HBox appearance = new HBox(8, new Label("播放器风格"), themeSelect); appearance.setAlignment(Pos.CENTER_LEFT);
         Region appearanceGap = new Region(); appearanceGap.setMinHeight(12);
-        HBox configTransfer = new HBox(8, exportConfig, importConfig); VBox switchOptions = new VBox(4, minimizeToTray, autoStart, keyboardShortcuts); GridPane shortcutGrid = new GridPane(); shortcutGrid.setHgap(8); shortcutGrid.setVgap(6); shortcutGrid.addRow(0, new Label("播放/暂停"), shortcutPlayField); shortcutGrid.addRow(1, new Label("上一首"), shortcutPreviousField); shortcutGrid.addRow(2, new Label("下一首"), shortcutNextField); VBox shortcutOptions = new VBox(8, new Label("自定义快捷键"), shortcutGrid); shortcutOptions.getStyleClass().add("settings-switch-group"); VBox startupOptions = new VBox(8, new Label("启动与窗口"), switchOptions); startupOptions.getStyleClass().add("settings-switch-group"); VBox dataActions = new VBox(10, new Label("外观与数据"), appearance, backgroundButton, clearBackground, appearanceGap, openConfig, clearConfig, configTransfer, startupOptions); dataActions.setAlignment(Pos.TOP_LEFT); dataActions.setMinWidth(180);
+        Label windowStyleLabel = new Label("窗口样式"); windowStyleLabel.setMinWidth(78); windowStyleLabel.setPrefWidth(78); HBox windowStyleRow = new HBox(10, windowStyleLabel, windowStyleSelect); windowStyleRow.setAlignment(Pos.CENTER_LEFT);
+        HBox configTransfer = new HBox(8, exportConfig, importConfig); VBox switchOptions = new VBox(8, minimizeToTray, autoStart, keyboardShortcuts, windowStyleRow); GridPane shortcutGrid = new GridPane(); shortcutGrid.setHgap(8); shortcutGrid.setVgap(6); shortcutGrid.addRow(0, new Label("播放/暂停"), shortcutPlayField); shortcutGrid.addRow(1, new Label("上一首"), shortcutPreviousField); shortcutGrid.addRow(2, new Label("下一首"), shortcutNextField); VBox shortcutOptions = new VBox(8, new Label("自定义快捷键"), shortcutGrid); shortcutOptions.getStyleClass().add("settings-switch-group"); VBox startupOptions = new VBox(8, new Label("启动与窗口"), switchOptions); startupOptions.getStyleClass().add("settings-switch-group"); VBox dataActions = new VBox(10, new Label("外观与数据"), appearance, backgroundButton, clearBackground, appearanceGap, openConfig, clearConfig, configTransfer, startupOptions); dataActions.setAlignment(Pos.TOP_LEFT); dataActions.setMinWidth(180);
         VBox leftSettings = new VBox(18, new Label("悬浮歌词"), grid, new Label("播放设置"), playbackSettings, shortcutOptions); leftSettings.getStyleClass().add("settings-column"); VBox rightSettings = new VBox(dataActions); rightSettings.getStyleClass().add("settings-column"); leftSettings.setPrefWidth(0); leftSettings.setMaxWidth(Double.MAX_VALUE); rightSettings.setPrefWidth(0); rightSettings.setMaxWidth(Double.MAX_VALUE); HBox settingsBody = new HBox(30, leftSettings, rightSettings); settingsBody.setAlignment(Pos.TOP_LEFT); HBox.setHgrow(leftSettings, Priority.ALWAYS); HBox.setHgrow(rightSettings, Priority.ALWAYS);
         VBox card = new VBox(18,h,new Label("播放、歌词和界面设置"),settingsBody); card.getStyleClass().add("content-card"); card.setPadding(new Insets(30)); card.setMinHeight(Region.USE_PREF_SIZE);
         ScrollPane scroll = new ScrollPane(card); scroll.setFitToWidth(true); scroll.setFitToHeight(false); scroll.setPannable(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED); scroll.getStyleClass().add("settings-scroll");
@@ -591,12 +647,9 @@ public class HelloController {
     }
 
     private HBox header() {
-        Label brand = new Label("♪  BoySir Music");
-        brand.getStyleClass().add("brand");
-        Label sub = new Label("Material music player");
-        sub.getStyleClass().add("subtitle");
-
-        VBox brandBox = new VBox(2, brand, sub);
+        ImageView brand = new ImageView(new Image(getClass().getResource("logo-big.png").toExternalForm()));
+        brand.setFitWidth(220); brand.setFitHeight(48); brand.setPreserveRatio(true); brand.getStyleClass().add("brand-logo");
+        VBox brandBox = new VBox(0, brand);
 
         MFXTextField input = new MFXTextField();
         input.setPromptText("搜索歌曲、歌手或专辑");
@@ -607,8 +660,8 @@ public class HelloController {
         input.getStyleClass().add("search-field");
         addFieldFeedback(input);
 
-        MFXButton search = new MFXButton("⌕");
-        search.getStyleClass().add("icon-button");
+        MFXButton search = new MFXButton("\uF002");
+        search.getStyleClass().addAll("icon-button", "fa-solid");
         search.setPrefSize(48, 48);
         configureRipple(search, 24);
         addPressAnimation(search);
@@ -640,7 +693,7 @@ public class HelloController {
         list.setPlaceholder(new Label("搜索歌曲后,结果会显示在这里")); list.setCellFactory(v -> new ListCell<>() {
             @Override protected void updateItem(Song s, boolean empty) { super.updateItem(s, empty); if (empty || s == null) { setGraphic(null); setContextMenu(null); return; }
                 Label no = new Label(String.format("%02d", getIndex() + 1)); no.getStyleClass().add("index"); Label name = new Label(s.name()); name.getStyleClass().add("song-name"); Label by = new Label(s.artist()); by.getStyleClass().add("song-artist");
-                VBox info = new VBox(3, name, by); HBox.setHgrow(info, Priority.ALWAYS); MFXButton play = new MFXButton("▶"); play.getStyleClass().add("row-play"); configureRipple(play, 20); addPressAnimation(play); play.setOnAction(e -> play(s)); HBox row = new HBox(18, no, info, play); row.setAlignment(Pos.CENTER_LEFT); setGraphic(row);
+                VBox info = new VBox(3, name, by); HBox.setHgrow(info, Priority.ALWAYS); MFXButton play = new MFXButton("\uF04B"); play.getStyleClass().addAll("row-play", "fa-solid"); configureRipple(play, 20); addPressAnimation(play); play.setOnAction(e -> play(s)); HBox row = new HBox(18, no, info, play); row.setAlignment(Pos.CENTER_LEFT); setGraphic(row);
                 MenuItem playItem = new MenuItem("播放"); playItem.setOnAction(e -> play(s)); MenuItem addItem = new MenuItem("添加到歌单"); addItem.setOnAction(e -> addToQueue(s)); setContextMenu(new ContextMenu(playItem, addItem));
             }
         }); list.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && list.getSelectionModel().getSelectedItem() != null) play(list.getSelectionModel().getSelectedItem()); });
@@ -648,18 +701,18 @@ public class HelloController {
         StackPane resultList = new StackPane(list, searchSpinner); resultList.setAlignment(Pos.CENTER); VBox.setVgrow(resultList, Priority.ALWAYS);
         VBox resultCard = new VBox(10, heading, hint, resultList); resultCard.getStyleClass().add("content-card"); resultCard.setPadding(new Insets(26, 30, 26, 30)); VBox.setVgrow(resultList, Priority.ALWAYS);
         Label lyricsTitle = new Label("歌词"); lyricsTitle.getStyleClass().add("section-title"); showTranslation.setSelected(savedState.showTranslation); showTranslation.selectedProperty().addListener((o,a,b)->{savedState.showTranslation=b; savedState.save(); if(currentSong!=null){updateDetails(currentSong); if(player!=null)updateLyric(player.getCurrentTime().toSeconds());}}); lyricLines.getStyleClass().add("lyric-lines"); lyricLines.getChildren().add(new Label("播放歌曲后，歌词会显示在这里"));
-        lyricScroll = new ScrollPane(lyricLines); lyricScroll.setFitToWidth(true); lyricScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); lyricScroll.getStyleClass().add("lyrics-scroll"); HBox lyricHeader=new HBox(lyricsTitle,new Region(),showTranslation); HBox.setHgrow(lyricHeader.getChildren().get(1),Priority.ALWAYS); lyricHeader.setAlignment(Pos.CENTER_LEFT); VBox lyricsCard = new VBox(12, lyricHeader, lyricScroll); lyricsCard.getStyleClass().add("lyrics-card"); lyricsCard.setPadding(new Insets(26)); VBox.setVgrow(lyricScroll, Priority.ALWAYS); if (currentSong != null) { updateDetails(currentSong); if (player != null) Platform.runLater(() -> updateLyric(player.getCurrentTime().toSeconds())); }
+        lyricScroll = new ScrollPane(lyricLines); lyricScroll.setFitToWidth(true); lyricScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); lyricScroll.getStyleClass().add("lyrics-scroll"); configureLyricScroll(lyricScroll); HBox lyricHeader=new HBox(lyricsTitle,new Region(),showTranslation); HBox.setHgrow(lyricHeader.getChildren().get(1),Priority.ALWAYS); lyricHeader.setAlignment(Pos.CENTER_LEFT); VBox lyricsCard = new VBox(12, lyricHeader, lyricScroll); lyricsCard.getStyleClass().add("lyrics-card"); lyricsCard.setPadding(new Insets(26)); VBox.setVgrow(lyricScroll, Priority.ALWAYS); if (currentSong != null) { updateDetails(currentSong); if (player != null) Platform.runLater(() -> updateLyric(player.getCurrentTime().toSeconds())); }
         SplitPane split = new SplitPane(resultCard, lyricsCard); split.setDividerPositions(0.64); split.getStyleClass().add("main-split"); VBox.setVgrow(split, Priority.ALWAYS); VBox wrapper = new VBox(split); wrapper.setPadding(new Insets(18, 28, 20, 20)); VBox.setVgrow(split, Priority.ALWAYS); return wrapper;
     }
 
     private Node playerBar() {
-        cover.setFitWidth(54); cover.setFitHeight(54); cover.setPreserveRatio(true); StackPane art = new StackPane(coverFallback, cover); Rectangle artClip = new Rectangle(54, 54); artClip.setArcWidth(28); artClip.setArcHeight(28); art.setClip(artClip); art.getStyleClass().add("artwork"); coverFallback.getStyleClass().add("cover-note"); art.setCursor(javafx.scene.Cursor.HAND); art.setOnMouseClicked(e -> openNowPlaying());
+        cover.setFitWidth(54); cover.setFitHeight(54); cover.setPreserveRatio(true); cover.setVisible(false); coverFallback.setVisible(true); StackPane art = new StackPane(coverFallback, cover); Rectangle artClip = new Rectangle(54, 54); artClip.setArcWidth(28); artClip.setArcHeight(28); art.setClip(artClip); art.getStyleClass().add("artwork"); coverFallback.getStyleClass().addAll("cover-note", "fa-solid"); art.setCursor(javafx.scene.Cursor.HAND); art.setOnMouseClicked(e -> openNowPlaying());
         title.getStyleClass().add("playing-name"); artist.getStyleClass().add("playing-artist"); HBox now = new HBox(14, art, new VBox(3, title, artist)); now.setAlignment(Pos.CENTER_LEFT); HBox.setHgrow(now, Priority.ALWAYS);
-        MFXButton prev = new MFXButton("\uE100"), next = new MFXButton("\uE101"); prev.setAccessibleText("上一首 \uE100"); next.setAccessibleText("下一首 \uE101"); prev.setUserData("\uE100"); next.setUserData("\uE101"); prev.getStyleClass().add("transport"); next.getStyleClass().add("transport"); toggle.getStyleClass().add("play-button"); repeat.getStyleClass().addAll("transport", "fa-solid"); for (Button b : new Button[]{prev, next, toggle, repeat}) { if (b instanceof MFXButton m) configureRipple(m, b == toggle ? 24 : 22); addPressAnimation(b); if (b == toggle) b.setPrefSize(56, 56); else b.setPrefSize(44, 44); b.setMinSize(b.getPrefWidth(), b.getPrefHeight()); } toggle.setOnAction(e -> toggle()); prev.setOnAction(e -> previous()); next.setOnAction(e -> next()); repeat.setOnAction(e -> { repeatMode = (repeatMode + 1) % 4; shuffleEnabled = repeatMode == 3; applyRepeatIcon(repeat, repeatMode); setActive(repeat, repeatMode != 0); });
+        MFXButton prev = new MFXButton("\uF048"), next = new MFXButton("\uF051"); prev.setAccessibleText("上一首"); next.setAccessibleText("下一首"); prev.setUserData("\uF048"); next.setUserData("\uF051"); prev.getStyleClass().addAll("transport", "fa-solid"); next.getStyleClass().addAll("transport", "fa-solid"); toggle.getStyleClass().addAll("play-button", "fa-solid"); repeat.getStyleClass().addAll("transport", "fa-solid"); for (Button b : new Button[]{prev, next, toggle, repeat}) { if (b instanceof MFXButton m) configureRipple(m, b == toggle ? 24 : 22); addPressAnimation(b); if (b == toggle) b.setPrefSize(56, 56); else b.setPrefSize(44, 44); b.setMinSize(b.getPrefWidth(), b.getPrefHeight()); } toggle.setOnAction(e -> toggle()); prev.setOnAction(e -> previous()); next.setOnAction(e -> next()); repeat.setOnAction(e -> { repeatMode = (repeatMode + 1) % 4; shuffleEnabled = repeatMode == 3; applyRepeatIcon(repeat, repeatMode); setActive(repeat, repeatMode != 0); });
         speed.getItems().setAll(.75, 1.0, 1.25, 1.5, 2.0); speed.setValue(savedState.speed); speed.selectItem(savedState.speed); speed.setText(savedState.speed + "x"); speed.setFloatMode(FloatMode.DISABLED); speed.setConverter(new javafx.util.StringConverter<>() { public String toString(Double v){return v==null?"1.0x":v+"x";} public Double fromString(String s){return Double.valueOf(s.replace("x", ""));} }); speed.getStyleClass().add("speed-select"); speed.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> Platform.runLater(() -> { if (!speed.isShowing()) speed.show(); })); speed.setOnAction(e -> { if (speed.getValue()!=null) speed.setText(speed.getConverter().toString(speed.getValue())); savedState.speed = speed.getValue(); savedState.save(); if (player != null) player.setRate(speed.getValue()); });
         volume.setValue(savedState.volume); volumePercent.setText(String.format("%d%%", Math.round(savedState.volume * 100))); volume.setPrefWidth(110); volume.getStyleClass().add("volume-slider"); volume.valueProperty().addListener((o,a,b) -> { volumePercent.setText(String.format("%d%%", Math.round(b.doubleValue()*100))); savedState.volume = b.doubleValue(); savedState.save(); if (player != null) player.setVolume(b.doubleValue()); applySliderFill(volume); });
         progress.setMaxWidth(Double.MAX_VALUE); progress.valueProperty().addListener((o, a, b) -> applySliderFill(progress)); progress.skinProperty().addListener((o, a, b) -> Platform.runLater(() -> applySliderFill(progress))); volume.skinProperty().addListener((o, a, b) -> Platform.runLater(() -> applySliderFill(volume))); progress.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_DRAGGED, e -> { e.consume(); setProgressFromMouse(e.getX()); }); progress.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> e.consume()); HBox timeline=new HBox(8,elapsed,progress,duration); timeline.getStyleClass().add("timeline"); timeline.setAlignment(Pos.CENTER); HBox.setHgrow(progress,Priority.ALWAYS); VBox state = new VBox(4, status); state.setAlignment(Pos.CENTER_RIGHT);
-        favorite.getStyleClass().addAll("favorite-button", "fa-regular"); favorite.setMinSize(38,38); favorite.setPrefSize(38,38); favorite.setMaxSize(38,38); favorite.setAlignment(Pos.CENTER); favorite.setPadding(Insets.EMPTY); configureRipple(favorite, 18); favorite.setOnAction(e -> toggleFavorite()); setFavoriteIcon(currentSong != null && hasFavorite(currentSong.id())); MFXButton downloadButton = new MFXButton("\uE118"); downloadButton.getStyleClass().addAll("transport", "option-button"); configureRipple(downloadButton, 18); downloadButton.setOnAction(e -> downloadCurrent()); MFXButton floatButton = new MFXButton("词"); floatingToggleButton = floatButton; floatButton.getStyleClass().addAll("transport", "text-button", "option-button"); configureRipple(floatButton, 18); floatButton.setOnAction(e -> toggleFloatingLyrics()); HBox controls = new HBox(10, prev, toggle, next, repeat); controls.setAlignment(Pos.CENTER); HBox options = new HBox(10, favorite, downloadButton, floatButton, new Label("速度"), speed, new Label("音量"), volume, volumePercent); options.setAlignment(Pos.CENTER_RIGHT); VBox right = new VBox(5, state, options); right.setAlignment(Pos.CENTER_RIGHT);
+        favorite.getStyleClass().addAll("favorite-button", "fa-regular"); favorite.setMinSize(38,38); favorite.setPrefSize(38,38); favorite.setMaxSize(38,38); favorite.setAlignment(Pos.CENTER); favorite.setPadding(Insets.EMPTY); configureRipple(favorite, 18); favorite.setOnAction(e -> toggleFavorite()); setFavoriteIcon(currentSong != null && hasFavorite(currentSong.id())); MFXButton downloadButton = new MFXButton("\uF019"); downloadButton.getStyleClass().addAll("transport", "option-button", "fa-solid"); configureRipple(downloadButton, 18); downloadButton.setOnAction(e -> downloadCurrent()); MFXButton floatButton = new MFXButton("\uF075"); floatingToggleButton = floatButton; floatButton.getStyleClass().addAll("transport", "option-button", "fa-solid"); floatingToggleButton.setAccessibleText("桌面歌词"); configureRipple(floatButton, 18); floatButton.setOnAction(e -> toggleFloatingLyrics()); HBox controls = new HBox(10, prev, toggle, next, repeat); controls.setAlignment(Pos.CENTER); HBox options = new HBox(10, favorite, downloadButton, floatButton, new Label("速度"), speed, new Label("音量"), volume, volumePercent); options.setAlignment(Pos.CENTER_RIGHT); VBox right = new VBox(5, state, options); right.setAlignment(Pos.CENTER_RIGHT);
         saying.getStyleClass().add("saying"); api.randomSaying().thenAccept(text -> Platform.runLater(() -> saying.setText(text))).exceptionally(e -> null);
         BorderPane bar = new BorderPane(); bar.getStyleClass().add("player-controls"); bar.setLeft(now); bar.setCenter(controls); bar.setRight(right); BorderPane.setAlignment(now, Pos.CENTER_LEFT); BorderPane.setAlignment(controls, Pos.CENTER); BorderPane.setAlignment(right, Pos.CENTER_RIGHT); bar.setPadding(new Insets(10, 34, 14, 34));
         spectrumCanvas.getStyleClass().add("spectrum-canvas"); spectrumCanvas.setManaged(false); spectrumCanvas.setMouseTransparent(true);
@@ -715,13 +768,13 @@ public class HelloController {
     private void animateResults() { list.setOpacity(0); list.setTranslateY(14); FadeTransition fade = new FadeTransition(Duration.millis(360), list); fade.setToValue(1); TranslateTransition slide = new TranslateTransition(Duration.millis(360), list); slide.setToY(0); new ParallelTransition(fade, slide).play(); }
     private void play(Song song) {
         if (song != null && song.id().startsWith("local:")) { playLocal(song); return; }
-        final long request = ++playGeneration; currentSong = song; setFavoriteIcon(hasFavorite(song.id())); int index = songs.indexOf(song); if (index >= 0) list.getSelectionModel().select(index); if (savedState.recordHistory) { historySongs.removeIf(existing -> existing.id().equals(song.id())); historySongs.add(0, song); } title.setText(song.name()); artist.setText(song.artist()); status.setText("正在加载歌曲…"); progress.setValue(0); elapsed.setText("0:00"); duration.setText("0:00"); if (player != null) { player.stop(); player.dispose(); player = null; } api.details(song).thenCombine(api.lyric(song), (detail, lyric) -> detail.withDetails(detail.coverUrl(), lyric)).thenCompose(detail -> { if (request != playGeneration) return CompletableFuture.completedFuture(null); currentSong = detail; Platform.runLater(() -> { if (request == playGeneration) { setFavoriteIcon(hasFavorite(detail.id())); updateDetails(detail); } }); return api.audioUrl(detail); }).thenAccept(url -> Platform.runLater(() -> startMedia(url, request))).exceptionally(e -> { if (request == playGeneration) Platform.runLater(() -> status.setText("歌曲详情或播放地址获取失败")); return null; }); }
+        final long request = ++playGeneration; currentSong = song; setFavoriteIcon(hasFavorite(song.id())); int index = songs.indexOf(song); if (index >= 0) list.getSelectionModel().select(index); if (savedState.recordHistory) { historySongs.removeIf(existing -> existing.id().equals(song.id())); historySongs.add(0, song); } title.setText(song.name()); artist.setText(song.artist()); status.setText("正在加载歌曲…"); progress.setValue(0); elapsed.setText("0:00"); duration.setText("0:00"); stopCurrentPlayerWithFade(); api.details(song).thenCombine(api.lyric(song), (detail, lyric) -> detail.withDetails(detail.coverUrl(), lyric)).thenCompose(detail -> { if (request != playGeneration) return CompletableFuture.completedFuture(null); currentSong = detail; Platform.runLater(() -> { if (request == playGeneration) { setFavoriteIcon(hasFavorite(detail.id())); updateDetails(detail); } }); return api.audioUrl(detail); }).thenAccept(url -> Platform.runLater(() -> startMedia(url, request))).exceptionally(e -> { if (request == playGeneration) Platform.runLater(() -> status.setText("歌曲详情或播放地址获取失败")); return null; }); }
     private void playLocal(Song song) {
         final long request = ++playGeneration;
         currentSong = song; setFavoriteIcon(hasFavorite(song.id()));
         if (savedState.recordHistory) { historySongs.removeIf(existing -> existing.id().equals(song.id())); historySongs.add(0, song); }
         title.setText(song.name()); artist.setText("本地音乐"); status.setText("正在加载本地歌曲…"); progress.setValue(0); elapsed.setText("0:00"); duration.setText("0:00");
-        if (player != null) { player.stop(); player.dispose(); player = null; }
+        stopCurrentPlayerWithFade();
         updateDetails(song);
         startMedia(Path.of(localPath(song.id())).toUri().toString(), request);
     }
@@ -735,6 +788,30 @@ public class HelloController {
         } else {
             status.setText("歌曲已在歌单中：" + song.name());
         }
+    }
+
+    private void importExternalPlaylist() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("导入外部歌单");
+        dialog.setHeaderText("粘贴网易云歌单链接");
+        dialog.setContentText("歌单链接：");
+        Optional<String> value = dialog.showAndWait();
+        if (value.isEmpty() || value.get().isBlank()) return;
+        status.setText("正在读取歌单…");
+        api.playlist(value.get().trim()).thenAccept(imported -> Platform.runLater(() -> {
+            int added = 0;
+            for (Song song : imported) {
+                if (recentSongs.stream().noneMatch(existing -> existing.id().equals(song.id()))) { recentSongs.add(song); added++; }
+            }
+            savedState.save();
+            status.setText(added == 0 ? "歌单歌曲已全部存在" : "已导入 " + added + " 首歌曲");
+        })).exceptionally(error -> { Platform.runLater(() -> status.setText("歌单导入失败：" + rootMessage(error))); return null; });
+    }
+
+    private String rootMessage(Throwable error) {
+        Throwable current = error;
+        while (current.getCause() != null) current = current.getCause();
+        return current.getMessage() == null ? "链接无效" : current.getMessage();
     }
 
     private void enqueueSong(Song song) {
@@ -754,27 +831,58 @@ public class HelloController {
         player.setAudioSpectrumThreshold(SPECTRUM_THRESHOLD);
         player.setAudioSpectrumListener((timestamp, spectrumDuration, magnitudes, phases) -> { if (request == playGeneration) spectrumMagnitudes = magnitudes.clone(); });
         startSpectrumTimer();
-        player.setOnReady(() -> { if (request != playGeneration) return; status.setText("播放中"); duration.setText(formatTime(player.getTotalDuration())); player.play(); reflectPlayback(true); });
+        player.setOnReady(() -> { if (request != playGeneration) return; status.setText("播放中"); duration.setText(formatTime(player.getTotalDuration())); player.setVolume(0); player.play(); fadeIn(player); reflectPlayback(true); });
         player.currentTimeProperty().addListener((o, a, b) -> { if (request != playGeneration || player == null) return; if (player.getTotalDuration().toSeconds() > 0) progress.setValue(b.toSeconds() / player.getTotalDuration().toSeconds()); elapsed.setText(formatTime(b)); updateLyric(b.toSeconds()); });
         player.setOnEndOfMedia(() -> { if (request != playGeneration) return; if (repeatMode == 2) { player.seek(Duration.ZERO); player.play(); } else if (repeatMode == 1 || shuffleEnabled) next(); else reflectPlayback(false); });
+    }
+    private void stopCurrentPlayerWithFade() {
+        if (fadeTimeline != null) { fadeTimeline.stop(); fadeTimeline = null; }
+        if (player == null) return;
+        MediaPlayer old = player;
+        player = null;
+        fadeTimeline = new Timeline(new KeyFrame(Duration.ZERO, new KeyValue(old.volumeProperty(), old.getVolume())), new KeyFrame(Duration.millis(220), new KeyValue(old.volumeProperty(), 0)));
+        fadeTimeline.setOnFinished(e -> { old.stop(); old.dispose(); fadeTimeline = null; });
+        fadeTimeline.play();
+    }
+    private void fadeIn(MediaPlayer target) {
+        if (fadeTimeline != null) { fadeTimeline.stop(); fadeTimeline = null; }
+        fadeTimeline = new Timeline(new KeyFrame(Duration.ZERO, new KeyValue(target.volumeProperty(), 0)), new KeyFrame(Duration.millis(320), new KeyValue(target.volumeProperty(), volume.getValue())));
+        fadeTimeline.setOnFinished(e -> fadeTimeline = null);
+        fadeTimeline.play();
     }
     private void seekProgress(double value) { if (player != null && player.getTotalDuration() != null && !player.getTotalDuration().isUnknown() && player.getTotalDuration().toSeconds() > 0) { player.seek(Duration.seconds(Math.max(0, Math.min(1, value)) * player.getTotalDuration().toSeconds())); } }
     private void setProgressFromMouse(double x) { double value = Math.max(0, Math.min(1, x / Math.max(1, progress.getWidth()))); progress.setValue(value); seekProgress(value); }
     private String formatTime(Duration value) { int total=(int)Math.max(0,value.toSeconds()); return String.format("%d:%02d", total/60,total%60); }
     private void updateDetails(Song song) {
-        if (!song.coverUrl().isBlank()) { cover.setImage(new Image(song.coverUrl(), true)); coverFallback.setVisible(false); }
+        if (song != null && !song.coverUrl().isBlank()) { cover.setImage(new Image(song.coverUrl(), true)); cover.setVisible(true); coverFallback.setVisible(false); }
+        else { cover.setImage(null); cover.setVisible(false); coverFallback.setVisible(true); }
         if (lyricScroll != null) lyricScroll.setVvalue(0);
         buildLyricLines(song, lyricLines, lyricEntries);
         if (isNowPlayingVisible() && nowPlayingLines != null) { if (nowPlayingScroll != null) nowPlayingScroll.setVvalue(0); buildLyricLines(song, nowPlayingLines, nowPlayingEntries); }
     }
     private void buildLyricLines(Song song, VBox linesBox, List<LyricEntry> entries) {
         entries.clear(); linesBox.getChildren().clear();
+        if (entries == lyricEntries) lyricActiveIndex = -1; else if (entries == nowPlayingEntries) nowPlayingActiveIndex = -1;
         String[] sections = song.lyric().split("\\n---TRANSLATION---\\n", 2);
         java.util.Map<String,String> translations = new java.util.HashMap<>();
         if (sections.length > 1) for (String line : sections[1].split("\\n")) { java.util.regex.Matcher tm = java.util.regex.Pattern.compile("\\[(\\d+):(\\d+(?:\\.\\d+)?)\\](.*)").matcher(line); if (tm.matches()) translations.put(tm.group(1)+":"+tm.group(2), tm.group(3).trim()); }
         if (sections.length == 0 || sections[0].isBlank()) { linesBox.getChildren().add(new Label("暂无歌词")); return; }
-        for (String line : sections[0].replace("\\r", "").split("\\n")) { java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[(\\d+):(\\d+(?:\\.\\d+)?)\\](.*)").matcher(line); if (m.matches()) { double time = Integer.parseInt(m.group(1)) * 60 + Double.parseDouble(m.group(2)); String key=m.group(1)+":"+m.group(2); VBox pair=new VBox(3); pair.setAlignment(Pos.CENTER); Label original=new Label(m.group(3).trim()); original.getStyleClass().add("lyric-line"); pair.getChildren().add(original); String translated=translations.get(key); if(showTranslation.isSelected()&&translated!=null&&!translated.isBlank()){Label trans=new Label(translated);trans.getStyleClass().add("lyric-translation");pair.getChildren().add(trans);} entries.add(new LyricEntry(time, original)); linesBox.getChildren().add(pair); } }
+        boolean left = "左对齐".equals(savedState.lyricAlignment);
+        linesBox.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER);
+        linesBox.setFillWidth(true);
+        for (String line : sections[0].replace("\\r", "").split("\\n")) { java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[(\\d+):(\\d+(?:\\.\\d+)?)\\](.*)").matcher(line); if (m.matches()) { double time = Integer.parseInt(m.group(1)) * 60 + Double.parseDouble(m.group(2)); String key=m.group(1)+":"+m.group(2); VBox pair=new VBox(3); pair.getStyleClass().addAll("lyric-row", left ? "lyric-row-left" : "lyric-row-center"); pair.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER); pair.setMaxWidth(Double.MAX_VALUE); Label original=new Label(m.group(3).trim()); original.getStyleClass().add("lyric-line"); original.setWrapText(true); original.setTextAlignment(left ? javafx.scene.text.TextAlignment.LEFT : javafx.scene.text.TextAlignment.CENTER); original.setMaxWidth(Double.MAX_VALUE); original.setOnMouseClicked(e -> seekProgressAt(time)); pair.getChildren().add(original); String translated=translations.get(key); if(showTranslation.isSelected()&&translated!=null&&!translated.isBlank()){Label trans=new Label(translated);trans.getStyleClass().add("lyric-translation");trans.setWrapText(true);trans.setTextAlignment(left ? javafx.scene.text.TextAlignment.LEFT : javafx.scene.text.TextAlignment.CENTER);trans.setMaxWidth(Double.MAX_VALUE);pair.getChildren().add(trans);} entries.add(new LyricEntry(time, original)); linesBox.getChildren().add(pair); } }
+        for (Node child : linesBox.getChildren()) if (child instanceof VBox row) {
+            row.prefWidthProperty().bind(linesBox.widthProperty().subtract(32));
+            row.setMaxWidth(Double.MAX_VALUE);
+            row.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER);
+            for (Node lineNode : row.getChildren()) if (lineNode instanceof Label lyricLabel) {
+                lyricLabel.setMaxWidth(Double.MAX_VALUE);
+                lyricLabel.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER);
+                lyricLabel.setTextAlignment(left ? javafx.scene.text.TextAlignment.LEFT : javafx.scene.text.TextAlignment.CENTER);
+            }
+        }
         if (entries.isEmpty()) linesBox.getChildren().add(new Label("暂无可解析歌词"));
+        else installLyricSwipe(linesBox, linesBox == lyricLines ? lyricScroll : nowPlayingScroll, entries);
     }
     private void updateLyric(double seconds) {
         seconds += savedState.lyricOffset;
@@ -790,22 +898,76 @@ public class HelloController {
     }
     private int highlightLyrics(double seconds, List<LyricEntry> entries, ScrollPane scroll) {
         int activeIndex = -1;
-        for (int i = 0; i < entries.size(); i++) { LyricEntry e = entries.get(i); boolean active = seconds >= e.time && (i == entries.size() - 1 || seconds < entries.get(i + 1).time); e.label.getStyleClass().removeAll("lyric-active"); if (active) activeIndex = i; }
+        for (int i = 0; i < entries.size(); i++) { LyricEntry e = entries.get(i); boolean active = seconds >= e.time && (i == entries.size() - 1 || seconds < entries.get(i + 1).time); if (active) activeIndex = i; }
         if (activeIndex < 0) { if (scroll != null) { Timeline t = new Timeline(new KeyFrame(Duration.millis(260), new KeyValue(scroll.vvalueProperty(), 0))); t.play(); } return -1; }
+        boolean wasActive = entries.get(activeIndex).label.getStyleClass().contains("lyric-active");
+        boolean isNowPlayingList = entries == nowPlayingEntries;
+        int previousIndex = isNowPlayingList ? nowPlayingActiveIndex : lyricActiveIndex;
+        boolean changed = previousIndex != activeIndex;
+        if (isNowPlayingList) nowPlayingActiveIndex = activeIndex; else lyricActiveIndex = activeIndex;
+        for (LyricEntry e : entries) { e.label.getStyleClass().removeAll("lyric-active"); if (e.label.getParent() != null) e.label.getParent().getStyleClass().remove("lyric-row-active"); }
         entries.get(activeIndex).label.getStyleClass().add("lyric-active");
-        if (scroll != null && entries.size() > 1) { double target = Math.max(0, Math.min(1, (activeIndex - 3.0) / Math.max(1, entries.size() - 7.0))); Timeline t=new Timeline(new KeyFrame(Duration.millis(320),new KeyValue(scroll.vvalueProperty(),target))); t.play(); }
+        if (entries.get(activeIndex).label.getParent() != null) entries.get(activeIndex).label.getParent().getStyleClass().add("lyric-row-active");
+        if (!wasActive && changed) {
+            Label entering = entries.get(activeIndex).label;
+            Node row = entering.getParent() == null ? entering : entering.getParent();
+            row.setOpacity(0.62);
+            row.setTranslateY(10);
+            row.setScaleX(0.985);
+            row.setScaleY(0.985);
+            FadeTransition lyricFade = new FadeTransition(Duration.millis(230), row); lyricFade.setToValue(1);
+            TranslateTransition lyricSlide = new TranslateTransition(Duration.millis(300), row); lyricSlide.setToY(0); lyricSlide.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
+            ScaleTransition lyricScale = new ScaleTransition(Duration.millis(300), row); lyricScale.setToX(1); lyricScale.setToY(1); lyricScale.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
+            new ParallelTransition(lyricFade, lyricSlide, lyricScale).play();
+        }
+        if (scroll != null && entries.size() > 1 && changed) {
+            double target = Math.max(0, Math.min(1, (activeIndex - 3.0) / Math.max(1, entries.size() - 7.0)));
+            Timeline follow = new Timeline(new KeyFrame(Duration.millis(360), new KeyValue(scroll.vvalueProperty(), target, javafx.animation.Interpolator.EASE_BOTH)));
+            follow.play();
+        }
         return activeIndex;
+    }
+    private void seekProgressAt(double seconds) {
+        if (player == null || player.getTotalDuration() == null || player.getTotalDuration().isUnknown()) return;
+        player.seek(Duration.seconds(Math.max(0, Math.min(seconds, player.getTotalDuration().toSeconds()))));
+    }
+    private void installLyricSwipe(VBox linesBox, ScrollPane scroll, List<LyricEntry> entries) {
+        final double[] startY = {0};
+        final boolean[] moved = {false};
+        linesBox.setOnMousePressed(event -> { startY[0] = event.getSceneY(); moved[0] = false; });
+        linesBox.setOnMouseDragged(event -> {
+            double delta = event.getSceneY() - startY[0];
+            if (Math.abs(delta) < 22 || moved[0] || entries.isEmpty()) return;
+            moved[0] = true;
+            int current = 0;
+            if (player != null) {
+                double now = player.getCurrentTime().toSeconds();
+                for (int i = 0; i < entries.size(); i++) if (entries.get(i).time <= now) current = i;
+            }
+            int target = Math.max(0, Math.min(entries.size() - 1, current + (delta < 0 ? 1 : -1)));
+            seekProgressAt(entries.get(target).time);
+            highlightLyrics(entries.get(target).time, entries, scroll);
+        });
+    }
+    private void configureLyricScroll(ScrollPane scroll) {
+        scroll.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, event -> {
+            if (Math.abs(event.getDeltaY()) < 0.5 || scroll.getContent() == null) return;
+            event.consume();
+            double target = Math.max(0, Math.min(1, scroll.getVvalue() - event.getDeltaY() / Math.max(160, scroll.getContent().getBoundsInLocal().getHeight())));
+            scroll.setVvalue(target);
+        });
     }
     private boolean isNowPlayingVisible() { return nowPlayingRoot != null && centerHost.getChildren().contains(nowPlayingRoot); }
     // Swaps the center page with a fade + slide + subtle scale so navigation and the
     // now-playing expand/collapse feel continuous. fromScale/fromY set the entry pose.
     private void swapCenter(Node next, double fromY, double fromScale) {
         centerHost.getChildren().setAll(next);
-        next.setOpacity(0); next.setTranslateY(fromY); next.setScaleX(fromScale); next.setScaleY(fromScale);
+        next.setCache(true);
+        next.setCacheHint(javafx.scene.CacheHint.SPEED);
+        next.setOpacity(0); next.setTranslateY(fromY);
         FadeTransition fade = new FadeTransition(Duration.millis(280), next); fade.setToValue(1);
         TranslateTransition slide = new TranslateTransition(Duration.millis(300), next); slide.setToY(0);
-        ScaleTransition scale = new ScaleTransition(Duration.millis(300), next); scale.setToX(1); scale.setToY(1);
-        ParallelTransition play = new ParallelTransition(fade, slide, scale); play.setInterpolator(javafx.animation.Interpolator.EASE_OUT); play.play();
+        ParallelTransition play = new ParallelTransition(fade, slide); play.setInterpolator(javafx.animation.Interpolator.EASE_OUT); play.setOnFinished(e -> next.setCache(false)); play.play();
     }
     private void swapCenter(Node next) { swapCenter(next, 16, 1); }
     private void openNowPlaying() {
@@ -822,19 +984,20 @@ public class HelloController {
         swapCenter(target != null ? target : mainContent(), 34, 0.96);
     }
     private Node nowPlayingView() {
-        MFXButton back = new MFXButton("\uE099"); back.getStyleClass().add("transport"); configureRipple(back, 18); addPressAnimation(back); back.setOnAction(e -> closeNowPlaying());
-        HBox topBar = new HBox(back); topBar.setAlignment(Pos.CENTER_LEFT);
+        MFXButton back = new MFXButton("\uF060"); back.getStyleClass().addAll("transport", "fa-solid"); configureRipple(back, 18); addPressAnimation(back); back.setOnAction(e -> closeNowPlaying());
+        MFXButton photo = new MFXButton("写真模式"); photo.getStyleClass().add("config-button"); configureRipple(photo, 18); addPressAnimation(photo);
+        HBox topBar = new HBox(back, new Region(), photo); HBox.setHgrow(topBar.getChildren().get(1), Priority.ALWAYS); topBar.setAlignment(Pos.CENTER_LEFT);
         javafx.beans.property.DoubleProperty coverSize = new javafx.beans.property.SimpleDoubleProperty(300);
         nowPlayingCover = new ImageView(); nowPlayingCover.fitWidthProperty().bind(coverSize); nowPlayingCover.fitHeightProperty().bind(coverSize); nowPlayingCover.setPreserveRatio(true); nowPlayingCover.imageProperty().bind(cover.imageProperty());
         Rectangle clip = new Rectangle(300, 300); clip.widthProperty().bind(coverSize); clip.heightProperty().bind(coverSize); clip.setArcWidth(32); clip.setArcHeight(32); nowPlayingCover.setClip(clip);
-        Label npNote = new Label("♫"); npNote.getStyleClass().add("cover-note"); npNote.visibleProperty().bind(cover.imageProperty().isNull());
+        Label npNote = new Label("\uF001"); npNote.getStyleClass().addAll("cover-note", "fa-solid"); npNote.visibleProperty().bind(cover.imageProperty().isNull());
         StackPane coverStack = new StackPane(npNote, nowPlayingCover); coverStack.setMinSize(0, 0); coverStack.prefWidthProperty().bind(coverSize); coverStack.prefHeightProperty().bind(coverSize); coverStack.maxWidthProperty().bind(coverSize); coverStack.maxHeightProperty().bind(coverSize); coverStack.getStyleClass().add("np-cover");
         Label npTitle = new Label(); npTitle.getStyleClass().add("playing-name"); npTitle.textProperty().bind(title.textProperty()); npTitle.setWrapText(true); npTitle.setAlignment(Pos.CENTER);
         Label npArtist = new Label(); npArtist.getStyleClass().add("playing-artist"); npArtist.textProperty().bind(artist.textProperty());
         VBox info = new VBox(6, npTitle, npArtist); info.setAlignment(Pos.CENTER);
         VBox left = new VBox(24, coverStack, info); left.setAlignment(Pos.CENTER); left.setMinWidth(340); left.setMinHeight(0);
         nowPlayingLines = new VBox(16); nowPlayingLines.getStyleClass().add("lyric-lines"); nowPlayingLines.getChildren().add(new Label("播放歌曲后，歌词会显示在这里"));
-        nowPlayingScroll = new ScrollPane(nowPlayingLines); nowPlayingScroll.setFitToWidth(true); nowPlayingScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); nowPlayingScroll.getStyleClass().add("lyrics-scroll"); VBox.setVgrow(nowPlayingScroll, Priority.ALWAYS);
+        nowPlayingScroll = new ScrollPane(nowPlayingLines); nowPlayingScroll.setFitToWidth(true); nowPlayingScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); nowPlayingScroll.getStyleClass().add("lyrics-scroll"); configureLyricScroll(nowPlayingScroll); VBox.setVgrow(nowPlayingScroll, Priority.ALWAYS);
         VBox right = new VBox(nowPlayingScroll); right.getStyleClass().add("lyrics-card"); right.setPadding(new Insets(22)); HBox.setHgrow(right, Priority.ALWAYS); VBox.setVgrow(nowPlayingScroll, Priority.ALWAYS);
         HBox body = new HBox(40, left, right); body.setAlignment(Pos.CENTER); body.setMinHeight(0);
         // Shrink the cover with the available height so the page never needs more room than the
@@ -842,10 +1005,20 @@ public class HelloController {
         body.heightProperty().addListener((o, a, h) -> coverSize.set(Math.max(120, Math.min(300, h.doubleValue() - 120)))); HBox.setHgrow(right, Priority.ALWAYS); VBox.setVgrow(body, Priority.ALWAYS);
         VBox card = new VBox(18, topBar, body); card.setMinHeight(0); card.getStyleClass().add("content-card"); card.setPadding(new Insets(26)); VBox.setVgrow(body, Priority.ALWAYS);
         VBox wrap = new VBox(card); wrap.setPadding(new Insets(18, 28, 20, 20)); VBox.setVgrow(card, Priority.ALWAYS);
-        wrap.setMinHeight(0); nowPlayingRoot = wrap; return wrap;
+        wrap.setMinHeight(0); nowPlayingRoot = wrap;
+        photo.setOnAction(e -> {
+            photoMode = !photoMode;
+            wrap.getStyleClass().remove("photo-mode");
+            if (photoMode) {
+                wrap.getStyleClass().add("photo-mode");
+                if (cover.getImage() != null) wrap.setBackground(new Background(new BackgroundImage(cover.getImage(), BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, new BackgroundSize(100, 100, true, true, false, true))));
+                photo.setText("退出写真");
+            } else { wrap.setBackground(null); photo.setText("写真模式"); }
+        });
+        return wrap;
     }
     private void toggleFloatingLyrics() { if (floatingStage != null && floatingStage.isShowing()) { savedState.floatingVisible = false; floatingStage.hide(); if (floatingToggleButton != null) setActive(floatingToggleButton, false); savedState.save(); return; } if (floatingStage == null) { floatingLyric = new Label("等待歌词…"); floatingTranslation = new Label(); floatingLyric.getStyleClass().add("floating-lyric"); floatingTranslation.getStyleClass().add("floating-translation"); VBox text = new VBox(3, floatingLyric, floatingTranslation); text.setAlignment(Pos.CENTER); StackPane pane = new StackPane(text); pane.getStyleClass().add("floating-lyric-pane"); pane.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-border-color: transparent;"); pane.setOnMousePressed(e -> { floatDragX = e.getScreenX() - floatingStage.getX(); floatDragY = e.getScreenY() - floatingStage.getY(); }); pane.setOnMouseDragged(e -> { floatingStage.setX(e.getScreenX() - floatDragX); floatingStage.setY(e.getScreenY() - floatDragY); }); floatingStage = new Stage(StageStyle.TRANSPARENT); floatingStage.setOnHidden(e -> { if (savedState.floatingVisible && !shuttingDown) Platform.runLater(() -> { if (!floatingStage.isShowing()) floatingStage.show(); }); }); javafx.scene.Scene floatScene = new javafx.scene.Scene(pane, savedState.floatingWidth, 112, Color.TRANSPARENT); floatScene.setFill(Color.TRANSPARENT); floatingStage.setScene(floatScene); floatingStage.setAlwaysOnTop(floatingTop.isSelected()); floatingStage.setX(300); floatingStage.setY(30); applyFloatingSettings(); } floatingStage.show(); savedState.floatingVisible = true; if (floatingToggleButton != null) setActive(floatingToggleButton, true); savedState.save(); }
-    private void setFloatingText(String text, String translation) { if (floatingLyric != null) floatingLyric.setText(text == null || text.isBlank() ? "♪" : text); if (floatingTranslation != null) { floatingTranslation.setText(translation == null ? "" : translation); floatingTranslation.setVisible(!translation.isBlank()); } }
+    private void setFloatingText(String text, String translation) { if (floatingLyric != null) floatingLyric.setText(text == null || text.isBlank() ? "\uF001" : text); if (floatingTranslation != null) { floatingTranslation.setText(translation == null ? "" : translation); floatingTranslation.setVisible(!translation.isBlank()); } }
     private void startSpectrumTimer() {
         if (spectrumTimer != null) return;
         spectrumTimer = new AnimationTimer() {
@@ -859,7 +1032,7 @@ public class HelloController {
         GraphicsContext g = spectrumCanvas.getGraphicsContext2D();
         g.clearRect(0, 0, w, h);
         if (w <= 0 || h <= 0) return;
-        boolean playing = player != null && "⏸".equals(toggle.getText());
+        boolean playing = player != null && "\uF04C".equals(toggle.getText());
         float[] mags = playing ? spectrumMagnitudes : null;
         double gap = 2, edge = 34;
         double usable = Math.max(1, w - edge * 2);
@@ -912,8 +1085,8 @@ public class HelloController {
         repeat.setText(switch (mode) { case 2 -> ""; case 3 -> ""; default -> ""; });
     }
     private void applyFloatingSettings() { if (floatingLyric == null || floatingTranslation == null) return; floatingLyric.setTextFill(floatingColor.getValue()); floatingTranslation.setTextFill(translationColor.getValue()); floatingLyric.setOpacity(floatingOpacity.getValue()); floatingTranslation.setOpacity(floatingOpacity.getValue()); String family = "'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif"; int oSize = (int)Math.round(floatingSize.getValue()); int tSize = (int)Math.round(translationSize.getValue()); String oSmoothing = oSize >= 38 ? "gray" : "lcd"; String tSmoothing = tSize >= 38 ? "gray" : "lcd"; floatingLyric.setStyle("-fx-font-family: " + family + "; -fx-font-size: " + oSize + "px; -fx-font-weight: 700; -fx-font-smoothing-type: " + oSmoothing + "; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.80), 5, 0.65, 0, 2);"); floatingTranslation.setStyle("-fx-font-family: " + family + "; -fx-font-size: " + tSize + "px; -fx-font-weight: 600; -fx-font-smoothing-type: " + tSmoothing + "; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.80), 4, 0.65, 0, 1);"); if (floatingStage != null) { floatingStage.setAlwaysOnTop(floatingTop.isSelected()); floatingStage.setWidth(savedState.floatingWidth); } }
-    private void toggle() { if (player == null) return; if ("⏸".equals(toggle.getText())) { player.pause(); reflectPlayback(false); status.setText("已暂停"); } else { player.play(); reflectPlayback(true); status.setText("播放中"); } }
-    private void reflectPlayback(boolean playing) { toggle.setText(playing ? "⏸" : "▶"); WindowsNotifier.setPlaybackPlaying(playing); }
+    private void toggle() { if (player == null) return; if ("\uF04C".equals(toggle.getText())) { player.pause(); reflectPlayback(false); status.setText("已暂停"); } else { player.play(); reflectPlayback(true); status.setText("播放中"); } }
+    private void reflectPlayback(boolean playing) { toggle.setText(playing ? "\uF04C" : "\uF04B"); toggle.getStyleClass().remove("fa-solid"); toggle.getStyleClass().add("fa-solid"); WindowsNotifier.setPlaybackPlaying(playing); }
     private void previous() { switchTrack(-1); }
     private void next() { switchTrack(1); }
     private void switchTrack(int direction) {
